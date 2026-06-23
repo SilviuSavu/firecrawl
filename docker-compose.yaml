@@ -1,8 +1,14 @@
 name: firecrawl
 
 x-common-service: &common-service
-  # Prebuilt arm64 image (ghcr.io/firecrawl/firecrawl has native arm64 manifest)
-  image: ghcr.io/firecrawl/firecrawl:latest
+  # Pinned by digest: firecrawl only publishes :latest on GHCR (no semver
+  # tags). Pinning the digest locks the API surface that the mounted
+  # ./overrides/generic-ai.js depends on (config shape, getModel signature,
+  # providerList exports), so a stray `docker compose pull` cannot silently
+  # bump the image out from under the override. Bump by hand by repulling
+  # :latest, re-verifying the override against the new internal surface,
+  # capturing the new digest here, and `docker compose up -d api`.
+  image: ghcr.io/firecrawl/firecrawl@sha256:e3d096eafc77a06bf5cdd544bf8e577fe75fb3cfcd6a2c01171d736616992701
 
   ulimits:
     nofile:
@@ -61,8 +67,9 @@ x-common-env: &common-env
 services:
   playwright-service:
     restart: unless-stopped
-    # Prebuilt arm64 image
-    image: ghcr.io/firecrawl/playwright-service:latest
+    # Pinned by digest to match the firecrawl image above. See the comment
+    # on x-common-service.image for rationale.
+    image: ghcr.io/firecrawl/playwright-service@sha256:1f6eba6403207d501a63d9b1d4685b6316b4fc7968fe64a5839ab1bfec9d1c14
     environment:
       PORT: 3000
       PROXY_SERVER: ${PROXY_SERVER}
@@ -110,8 +117,17 @@ services:
         condition: service_started
       rabbitmq:
         condition: service_healthy
+      nuq-postgres:
+        condition: service_healthy
     ports:
-      - "${PORT:-3002}:${INTERNAL_PORT:-3002}"
+      # Bind to 127.0.0.1 only: USE_DB_AUTHENTICATION=false means anyone who
+      # can reach the port can scrape/extract/deep-research at Z.AI/DeepInfra
+      # credit expense. Executor's firecrawl.user.local connection is local,
+      # so there's no need for the host port to be reachable on the LAN /
+      # tailnet. If you ever need remote access, proxy this behind caddy
+      # (caddy:2.9.1 is already running on 80/443) with basic auth + IP
+      # allowlist rather than re-binding to 0.0.0.0.
+      - "127.0.0.1:${PORT:-3002}:${INTERNAL_PORT:-3002}"
     # Resource limits for Docker Compose (not Swarm)
     # Increase if you have more CPU cores/RAM available
     cpus: 4.0
@@ -171,6 +187,17 @@ services:
         max-size: "10m"
         max-file: "3"
         compress: "true"
+    # pg_isready healthcheck + api's depends_on: service_healthy closes the
+    # cold-start race where the api boots before pg_cron / the queue schema
+    # are ready. Matches the same pattern the rabbitmq block already uses;
+    # it does not help during normal operation but it does prevent the
+    # documented `docker compose down -v && up` reset path from racing.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
 networks:
   backend:
