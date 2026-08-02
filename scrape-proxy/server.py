@@ -56,8 +56,10 @@ SCRAPE_PATHS = {"/v1/scrape", "/scrape", "/v2/scrape"}
 _SSL = ssl.create_default_context()
 
 
-def _post(url, headers, body, timeout):
-    req = urlrequest.Request(url, data=body, headers=headers, method="POST")
+def _request(method, url, headers, body, timeout):
+    # GET must have no body (Firecrawl's /crawl/{id} status is GET-only and
+    # 404s on POST); POST/PUT carry the body. Honor the original verb.
+    req = urlrequest.Request(url, data=(body if body else None), headers=headers, method=method)
     with urlrequest.urlopen(req, timeout=timeout, context=_SSL) as r:
         return r.status, r.read()
 
@@ -107,7 +109,7 @@ class Proxy(BaseHTTPRequestHandler):
         """Forward any request to local unchanged."""
         headers = _hdrs_in(self.headers)
         try:
-            status, resp = _post(LOCAL + self.path, headers, body, LOCAL_TIMEOUT)
+            status, resp = _request(self.command, LOCAL + self.path, headers, body, LOCAL_TIMEOUT)
             self._respond(status, resp)
         except Exception as e:  # local unreachable
             self._respond(502, json.dumps({"success": False, "error": f"proxy->local: {e}"}).encode())
@@ -117,7 +119,7 @@ class Proxy(BaseHTTPRequestHandler):
         headers = _hdrs_in(self.headers)
         local_status, local_resp = None, None
         try:
-            local_status, local_resp = _post(LOCAL + self.path, headers, body, LOCAL_TIMEOUT)
+            local_status, local_resp = _request("POST", LOCAL + self.path, headers, body, LOCAL_TIMEOUT)
             if not _looks_failed(local_resp):
                 self._respond(local_status, local_resp)
                 return
@@ -140,7 +142,7 @@ class Proxy(BaseHTTPRequestHandler):
         payload.setdefault("proxy", "auto")  # let Cloud escalate to stealth if basic fails
         cheaders = {"Content-Type": "application/json", "Authorization": "Bearer " + CLOUD_KEY}
         try:
-            cstatus, cresp = _post(CLOUD + self.path, cheaders, json.dumps(payload).encode(), CLOUD_TIMEOUT)
+            cstatus, cresp = _request("POST", CLOUD + self.path, cheaders, json.dumps(payload).encode(), CLOUD_TIMEOUT)
             print(f"[proxy] Cloud fallback USED for {payload.get('url')[:60] if isinstance(payload.get('url'), str) else '?'} (local: {reason})", flush=True)
             self._respond(cstatus, cresp)
         except Exception as e:
