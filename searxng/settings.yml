@@ -9,13 +9,18 @@ search:
     - json
 
 server:
-  secret_key: "searxng"
+  secret_key: "ultrasecretkey"   # rendered at startup from $SEARXNG_SECRET (see searxng/entrypoint.sh)
   bind_address: "0.0.0.0"
   port: 8080
 
-# Outgoing request tuning. request_timeout bounds each engine so a slow or
-# CAPTCHA'd engine cannot stall the whole query. Raise max_request_timeout
-# when you add a proxy below (proxies add latency).
+# Outgoing request tuning. Measurement note: neither value reliably bounds
+# /v2/search latency. request_timeout is the per-engine default, but engines
+# that inherit it are NOT hard-capped at it. max_request_timeout bounds the
+# direct SearXNG query (15->4s cut it ~3x) BUT SearXNG can exceed it by ~2x
+# under load, and /v2/search latency is dominated by engine flakiness (DDG
+# CAPTCHA, brave/yandex variance) + Firecrawl retries -- so lowering it (tested
+# 4.0 and 6.0) made the WORST case worse (13-15s vs 9.3s at 15.0) without
+# improving the median. Keep 15.0; to cut latency, prune slow engines instead.
 outgoing:
   request_timeout: 3.0
   max_request_timeout: 15.0
@@ -55,12 +60,21 @@ engines:
     shortcut: brvs
     disabled: false
     timeout: 10
+  # Exa neural/semantic search via its JSON API. The custom exa.py engine reads
+  # EXA_API_KEY from the container env. Complements the keyword engines -- Exa
+  # retrieves by meaning, surfacing sources Bing/DDG/SerpApi miss (measured ~32%
+  # top-10 overlap with Google). POST API, no offset pagination. Free 20k/mo.
+  - name: exa
+    engine: exa
+    shortcut: exa
+    disabled: false
+    timeout: 10
 
   # ---- Scraping engines (work from this IP today) ----
   - name: bing
     disabled: false
   - name: yandex
-    disabled: false
+    disabled: true   # consistently slow (5-9s) low-value scrape engine; pruned for latency
   # DuckDuckGo: intermittent on this IP (returns ~5-10 results most queries,
   # CAPTCHAs under sustained load). Strictly additive -- on a CAPTCHA it records
   # an error and the query still returns bing/yandex/serpapi results.

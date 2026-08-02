@@ -94,6 +94,7 @@ services:
 
   searxng:
     image: searxng/searxng:latest
+    entrypoint: ["/bin/sh", "/usr/local/searxng/searxng-entrypoint.sh"]
     restart: unless-stopped
     networks:
       - backend
@@ -103,10 +104,14 @@ services:
       SEARXNG_BASE_URL: ${SEARXNG_BASE_URL:-http://localhost:8888/}
       SERPAPI_API_KEY: ${SERPAPI_API_KEY}
       BRAVE_API_KEY: ${BRAVE_API_KEY}
+      SEARXNG_SECRET: ${SEARXNG_SECRET}
+      EXA_API_KEY: ${EXA_API_KEY}
     volumes:
-      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - ./searxng/settings.yml:/etc/searxng/settings.template.yml:ro
       - ./searxng/serpapi.py:/usr/local/searxng/searx/engines/serpapi.py:ro
       - ./searxng/bravesearch.py:/usr/local/searxng/searx/engines/bravesearch.py:ro
+      - ./searxng/exa.py:/usr/local/searxng/searx/engines/exa.py:ro
+      - ./searxng/entrypoint.sh:/usr/local/searxng/searxng-entrypoint.sh:ro
       - searxng-cache:/var/cache/searxng
 
   api:
