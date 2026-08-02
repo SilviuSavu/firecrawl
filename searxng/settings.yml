@@ -13,13 +13,64 @@ server:
   bind_address: "0.0.0.0"
   port: 8080
 
-# Engine overrides (merged with use_default_settings). The Docker image ships
-# with a fragile default general set (brave, duckduckgo, google cse, startpage)
-# where most engines rate-limit a typical self-hosted IP. Enable bing and
-# yandex -- both verified reliable without API keys -- so the general category
-# has real redundancy instead of depending on startpage alone.
+# Outgoing request tuning. request_timeout bounds each engine so a slow or
+# CAPTCHA'd engine cannot stall the whole query. Raise max_request_timeout
+# when you add a proxy below (proxies add latency).
+outgoing:
+  request_timeout: 3.0
+  max_request_timeout: 15.0
+  # ---- LEVER A: outgoing proxy (unblocks brave/startpage/google scraping) ----
+  # A self-hosted IP gets rate-limited/CAPTCHA'd by scraping engines. Routing
+  # egress through a rotating residential proxy fixes this. SearXNG reads this
+  # file verbatim (no env interpolation), so paste the proxy URL directly or
+  # template this file at container start. Uncomment to activate:
+  # proxies:
+  #   all://:
+  #     - http://user:pass@your-rotating-proxy.example:8080
+  # extra_proxy_timeout: 10.0
+  # using_tor_proxy: true   # free but slow; Google/Bing block Tor exits -> less reach
+
+# Engine overrides (merged with use_default_settings). Enabled engines are
+# either API-backed (immune to IP rate-limiting) or verified scraping-resilient
+# on this self-hosted IP. Live-tested 2026: bing/yandex/serpapi work; duckduckgo
+# is intermittent; brave/startpage/google are CAPTCHA'd/blocked without a proxy.
 engines:
+  # ---- API-backed (never touch the search site; immune to rate-limiting) ----
+  # Google via SerpApi. Immune to the blocking that disables stock google
+  # engines. Requires SERPAPI_API_KEY in the searxng container env.
+  - name: serpapi
+    engine: serpapi
+    disabled: false
+    timeout: 15
+  # Brave Search via the official REST API. The custom braveapi.py engine reads
+  # BRAVE_API_KEY from the container env (mirroring serpapi.py), so the key stays
+  # in .env and out of this git-tracked file. Registered under a unique name
+  # (`bravesearch`, shortcut `brvs`) so it does NOT collide with the bundled
+  # default `braveapi` entry, which ships inactive:true (api_key empty) --
+  # merging into that entry triggers an "ambiguous shortcut" crash. Immune to
+  # the "too many requests" that blocks the scraping `brave` engine. Free tier:
+  # 2000 queries/month.
+  - name: bravesearch
+    engine: bravesearch
+    shortcut: brvs
+    disabled: false
+    timeout: 10
+
+  # ---- Scraping engines (work from this IP today) ----
   - name: bing
     disabled: false
   - name: yandex
     disabled: false
+  # DuckDuckGo: intermittent on this IP (returns ~5-10 results most queries,
+  # CAPTCHAs under sustained load). Strictly additive -- on a CAPTCHA it records
+  # an error and the query still returns bing/yandex/serpapi results.
+  - name: duckduckgo
+    disabled: false
+
+  # ---- Persistently blocked from this IP (need proxy or API key; see above) ----
+  - name: brave
+    disabled: true
+  - name: startpage
+    disabled: true
+  - name: google cse
+    disabled: true
