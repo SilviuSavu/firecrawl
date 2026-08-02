@@ -32,7 +32,7 @@ const SOURCE_TO_SEARXNG_CATEGORY: Record<SearchResultType, string> = {
 
 const RESULTS_PER_PAGE = 20;
 
-export const SEARXNG_DEFAULT_TIMEOUT = 5000;
+export const SEARXNG_DEFAULT_TIMEOUT = 30000;
 export const SEARXNG_DEFAULT_RETRIES = 1;
 
 function parseImageResolution(
@@ -74,6 +74,28 @@ export function tbsToSearxngTimeRange(
   return g ? TBS_TO_SEARXNG_RANGE[g] : undefined;
 }
 
+// SearXNG has no standalone `country` request parameter. Region is encoded in
+// the `language` parameter as a BCP47 region tag (e.g. "de-DE"); SearXNG parses
+// that tag into a babel locale and exposes locale.territory to engines as
+// params['country']. The custom brave and serpapi engines both read it, so
+// building the tag from Firecrawl's lang + country makes region localization
+// reach the engines instead of being silently dropped.
+const ISO_LANG = /^[a-z]{2,3}$/;
+
+export function buildSearxngLanguage(
+  lang?: string,
+  country?: string,
+): string | undefined {
+  const l = (lang ?? "").trim();
+  if (!l) return undefined;
+  // "all" (SearXNG's any-language sentinel), a full locale ("en-US"), or any
+  // non plain language code passes through unchanged.
+  if (l === "all" || !ISO_LANG.test(l)) return l;
+  const c = (country ?? "").trim().toUpperCase();
+  if (!c) return l;
+  return `${l}-${c}`;
+}
+
 export type SearxngErrorKind =
   | "timeout"
   | "network"
@@ -91,8 +113,9 @@ export interface SearxngErrorInfo {
 
 // Maps an axios/runtime failure onto a classified, retry-aware descriptor so
 // the caller can log distinctly and decide whether to retry. Grounded in the
-// codes axios 1.x emits: ERR_CANCELED (AbortController), ERR_NETWORK,
-// ERR_BAD_RESPONSE (5xx), ERR_BAD_REQUEST (4xx).
+// codes axios 1.x emits: ECONNABORTED/ETIMEDOUT (native `timeout` option),
+// ERR_CANCELED (AbortController), ERR_NETWORK, ERR_BAD_RESPONSE (5xx),
+// ERR_BAD_REQUEST (4xx).
 export function classifySearxngError(error: unknown): SearxngErrorInfo {
   const e = error as { code?: string; message?: string; name?: string };
   const code = e?.code;
@@ -104,6 +127,13 @@ export function classifySearxngError(error: unknown): SearxngErrorInfo {
     return {
       kind: "timeout",
       message: "request aborted (timeout)",
+      retryable: true,
+    };
+  }
+  if (code === "ECONNABORTED" || code === "ETIMEDOUT") {
+    return {
+      kind: "timeout",
+      message: e?.message ?? "request timed out",
       retryable: true,
     };
   }
@@ -157,13 +187,11 @@ export async function fetchSearxngPage(
 ): Promise<any[]> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
-    const controller = new AbortController();
-    const timeoutHandle = setTimeout(() => controller.abort(), timeout);
     try {
       const response = await axios.get(url, {
         headers: { "Content-Type": "application/json" },
         params,
-        signal: controller.signal,
+        timeout,
       });
       const data = response.data;
       return data && Array.isArray(data.results) ? data.results : [];
@@ -171,8 +199,6 @@ export async function fetchSearxngPage(
       lastError = error;
       const info = classifySearxngError(error);
       if (!info.retryable || attempt === maxRetries) break;
-    } finally {
-      clearTimeout(timeoutHandle);
     }
   }
   throw lastError;
@@ -211,7 +237,7 @@ export async function searxng_search(
       finalUrl,
       {
         q,
-        language: options.lang,
+        language: buildSearxngLanguage(options.lang, options.country),
         engines: config.SEARXNG_ENGINES ?? "",
         categories: searxngCategories,
         pageno: page,

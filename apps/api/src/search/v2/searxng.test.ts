@@ -1,5 +1,9 @@
 import { AxiosError } from "axios";
-import { classifySearxngError, tbsToSearxngTimeRange } from "./searxng";
+import {
+  buildSearxngLanguage,
+  classifySearxngError,
+  tbsToSearxngTimeRange,
+} from "./searxng";
 
 function httpError(status: number, code = "ERR_BAD_REQUEST"): AxiosError {
   return new AxiosError(
@@ -14,6 +18,20 @@ function httpError(status: number, code = "ERR_BAD_REQUEST"): AxiosError {
 describe("classifySearxngError", () => {
   it("classifies an axios abort (ERR_CANCELED) as a retryable timeout", () => {
     const info = classifySearxngError(new AxiosError("canceled", "ERR_CANCELED"));
+    expect(info.kind).toBe("timeout");
+    expect(info.retryable).toBe(true);
+  });
+
+  it("classifies an axios native timeout (ECONNABORTED) as a retryable timeout", () => {
+    const info = classifySearxngError(
+      new AxiosError("timeout of 30000ms exceeded", "ECONNABORTED"),
+    );
+    expect(info.kind).toBe("timeout");
+    expect(info.retryable).toBe(true);
+  });
+
+  it("classifies ETIMEDOUT as a retryable timeout", () => {
+    const info = classifySearxngError(new AxiosError("read ETIMEDOUT", "ETIMEDOUT"));
     expect(info.kind).toBe("timeout");
     expect(info.retryable).toBe(true);
   });
@@ -110,5 +128,39 @@ describe("tbsToSearxngTimeRange", () => {
   });
   it("returns undefined for empty string", () => {
     expect(tbsToSearxngTimeRange("")).toBeUndefined();
+  });
+});
+
+describe("buildSearxngLanguage", () => {
+  it("combines a language and country into a BCP47 region tag", () => {
+    expect(buildSearxngLanguage("de", "de")).toBe("de-DE");
+    expect(buildSearxngLanguage("en", "us")).toBe("en-US");
+  });
+
+  it("uppercases the country code", () => {
+    expect(buildSearxngLanguage("en", "US")).toBe("en-US");
+    expect(buildSearxngLanguage("fr", "fr")).toBe("fr-FR");
+  });
+
+  it("returns the language alone when no country is given", () => {
+    expect(buildSearxngLanguage("de")).toBe("de");
+    expect(buildSearxngLanguage("de", "")).toBe("de");
+    expect(buildSearxngLanguage("de", "  ")).toBe("de");
+  });
+
+  it("passes a full locale through unchanged", () => {
+    expect(buildSearxngLanguage("zh-CN")).toBe("zh-CN");
+    expect(buildSearxngLanguage("pt-BR", "pt")).toBe("pt-BR");
+  });
+
+  it("passes 'all' and non-language strings through unchanged", () => {
+    expect(buildSearxngLanguage("all")).toBe("all");
+    expect(buildSearxngLanguage("all", "us")).toBe("all");
+  });
+
+  it("returns undefined when no language is given", () => {
+    expect(buildSearxngLanguage()).toBeUndefined();
+    expect(buildSearxngLanguage("", "us")).toBeUndefined();
+    expect(buildSearxngLanguage(undefined, "us")).toBeUndefined();
   });
 });

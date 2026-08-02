@@ -2,6 +2,7 @@ import { config } from "../config";
 import { SearchResult } from "../../src/lib/entities";
 import { logger } from "../lib/logger";
 import {
+  buildSearxngLanguage,
   fetchSearxngPage,
   SEARXNG_DEFAULT_TIMEOUT,
   SEARXNG_DEFAULT_RETRIES,
@@ -38,7 +39,7 @@ export async function searxng_search(
       finalUrl,
       {
         q,
-        language: options.lang,
+        language: buildSearxngLanguage(options.lang, options.country),
         engines: config.SEARXNG_ENGINES ?? "",
         categories: config.SEARXNG_CATEGORIES ?? "",
         pageno: page,
