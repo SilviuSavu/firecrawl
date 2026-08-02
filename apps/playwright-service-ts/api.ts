@@ -197,6 +197,12 @@ const initializeBrowser = async () => {
       '--no-first-run',
       '--no-zygote',
       '--disable-gpu',
+      // Anti-automation: stops Chrome from setting navigator.webdriver and
+      // removes the CDP automation blink flag that bot detectors key on.
+      // Confirmed necessary: an addInitScript override alone does not hide
+      // navigator.webdriver (Chrome sets it at launch time).
+      '--disable-blink-features=AutomationControlled',
+      '--disable-features=AutomationControlled',
     ],
   });
 };
@@ -208,7 +214,28 @@ const createContext = async (
   context: BrowserContext;
   securityState: ContextSecurityState;
 }> => {
-  const userAgent = userAgentOverride || new UserAgent().toString();
+  // Desktop-only UA rotation. The user-agents package otherwise returns random
+  // mobile UAs (iPhone), which clash with the desktop viewport below and trip
+  // "Chrome missing" / UA-mismatch detectors. Fall back to a fixed desktop UA
+  // if the filter is unsupported or still yields a mobile string.
+  let userAgent = userAgentOverride;
+  if (!userAgent) {
+    try {
+      userAgent = new UserAgent({ deviceCategory: "desktop" }).toString();
+    } catch {
+      userAgent = new UserAgent().toString();
+    }
+    if (/iPhone|iPad|Android|Mobile/i.test(userAgent)) {
+      userAgent =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+    }
+  }
+  // Keep navigator.platform consistent with the UA (a mismatch is a tell).
+  const platform = /Macintosh|Mac OS X/i.test(userAgent)
+    ? "MacIntel"
+    : /Linux/i.test(userAgent)
+      ? "Linux x86_64"
+      : "Win32";
   const viewport = { width: 1280, height: 800 };
   const securityState: ContextSecurityState = {
     blockedNavigationRequestUrl: null,
@@ -226,6 +253,40 @@ const createContext = async (
   };
 
   const newContext = await browser.newContext(contextOptions);
+  // Stealth: mask the headless-Chrome tells that bot detectors flag (confirmed
+  // via bot.sannysoft.com: navigator.webdriver present, window.chrome missing,
+  // plugins length 0, languages en-US@posix). Runs in every frame before page JS.
+  // Does NOT add a residential proxy or CAPTCHA solving -- heavy Cloudflare /
+  // DataDome will still block; for those use Fire Engine (see FIRE_ENGINE_BETA_URL).
+  // Stealth script as a string: addInitScript takes a single script (the
+  // (arg, fn) overload belongs to evaluate, not addInitScript), and closures do
+  // not survive serialization -- so the platform is baked in with JSON.stringify.
+  const stealthScript = `(function () {
+    try { Object.defineProperty(navigator, 'webdriver', { get: function () { return undefined; }, configurable: true }); } catch (e) {}
+    try { Object.defineProperty(Navigator.prototype, 'webdriver', { get: function () { return undefined; }, configurable: true }); } catch (e) {}
+    try { delete Navigator.prototype.webdriver; } catch (e) {}
+    try { Object.defineProperty(navigator, 'languages', { get: function () { return ['en-US', 'en']; } }); } catch (e) {}
+    try { Object.defineProperty(navigator, 'platform', { get: function () { return ${JSON.stringify(platform)}; } }); } catch (e) {}
+    try {
+      if (!window.chrome) {
+        window.chrome = { runtime: {}, app: {}, csi: function () {}, loadTimes: function () {} };
+      }
+    } catch (e) {}
+    try {
+      var mk = function (name) { var a = [{}]; a.name = name; a.description = name; a.filename = 'internal-pdf-viewer'; return a; };
+      var plugins = [mk('PDF Viewer'), mk('Chrome PDF Viewer'), mk('Chromium PDF Viewer')];
+      Object.defineProperty(navigator, 'plugins', { get: function () { return plugins; } });
+    } catch (e) {}
+    try {
+      var orig = navigator.permissions.query.bind(navigator.permissions);
+      navigator.permissions.query = function (p) {
+        return (p && p.name === 'notifications')
+          ? Promise.resolve({ state: (typeof Notification !== 'undefined' && Notification.permission) || 'prompt', onchange: null })
+          : orig(p);
+      };
+    } catch (e) {}
+  })();`;
+  await newContext.addInitScript(stealthScript);
 
   if (BLOCK_MEDIA) {
     await newContext.route(
