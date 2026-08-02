@@ -47,6 +47,15 @@ engines:
     engine: serpapi
     disabled: false
     timeout: 15
+  # Tavily AI web search via its JSON API. Added ALONGSIDE serpapi -- each is
+  # independently additive, so if one quota runs out the other still returns
+  # results. Reads TAVILY_API_KEY from the container env. Pinned to basic depth
+  # (1 credit/call; free tier 1,000/mo, no auto-charge when exhausted).
+  - name: tavily
+    engine: tavily
+    shortcut: tav
+    disabled: false
+    timeout: 10
   # Brave Search via the official REST API. The custom braveapi.py engine reads
   # BRAVE_API_KEY from the container env (mirroring serpapi.py), so the key stays
   # in .env and out of this git-tracked file. Registered under a unique name
