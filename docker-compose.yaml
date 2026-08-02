@@ -116,6 +116,24 @@ services:
       - ./searxng/entrypoint.sh:/usr/local/searxng/searxng-entrypoint.sh:ro
       - searxng-cache:/var/cache/searxng
 
+  # Transparent scrape proxy: fronts the api for callers that want a Firecrawl
+  # Cloud fallback on hard/anti-bot pages. Point the agent at it with
+  # FIRECRAWL_URL=http://localhost:3003/v1 (and bump WEB_SCRAPE_TIMEOUT_MS).
+  scrape-proxy:
+    image: python:3.12-slim
+    restart: unless-stopped
+    depends_on: [api]
+    environment:
+      LOCAL_FIRECRAWL_URL: http://api:3002
+      FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY}
+    volumes:
+      - ./scrape-proxy/server.py:/app/server.py:ro
+    command: python /app/server.py
+    networks:
+      - backend
+    ports:
+      - "3003:3003"
+
   api:
     <<: *common-service
     restart: unless-stopped
