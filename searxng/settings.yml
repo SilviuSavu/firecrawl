@@ -1,99 +1,124 @@
 use_default_settings: true
-
 search:
   safe_search: 0
-  autocomplete: ""
-  default_lang: ""
+  autocomplete: ''
+  default_lang: ''
   formats:
-    - html
-    - json
-
+  - html
+  - json
 server:
-  secret_key: "ultrasecretkey"   # rendered at startup from $SEARXNG_SECRET (see searxng/entrypoint.sh)
-  bind_address: "0.0.0.0"
+  secret_key: ultrasecretkey
+  bind_address: 0.0.0.0
   port: 8080
-
-# Outgoing request tuning. Measurement note: neither value reliably bounds
-# /v2/search latency. request_timeout is the per-engine default, but engines
-# that inherit it are NOT hard-capped at it. max_request_timeout bounds the
-# direct SearXNG query (15->4s cut it ~3x) BUT SearXNG can exceed it by ~2x
-# under load, and /v2/search latency is dominated by engine flakiness (DDG
-# CAPTCHA, brave/yandex variance) + Firecrawl retries -- so lowering it (tested
-# 4.0 and 6.0) made the WORST case worse (13-15s vs 9.3s at 15.0) without
-# improving the median. Keep 15.0; to cut latency, prune slow engines instead.
 outgoing:
-  request_timeout: 3.0
-  max_request_timeout: 15.0
-  # ---- LEVER A: outgoing proxy (unblocks brave/startpage/google scraping) ----
-  # A self-hosted IP gets rate-limited/CAPTCHA'd by scraping engines. Routing
-  # egress through a rotating residential proxy fixes this. SearXNG reads this
-  # file verbatim (no env interpolation), so paste the proxy URL directly or
-  # template this file at container start. Uncomment to activate:
-  # proxies:
-  #   all://:
-  #     - http://user:pass@your-rotating-proxy.example:8080
-  # extra_proxy_timeout: 10.0
-  # using_tor_proxy: true   # free but slow; Google/Bing block Tor exits -> less reach
-
-# Engine overrides (merged with use_default_settings). Enabled engines are
-# either API-backed (immune to IP rate-limiting) or verified scraping-resilient
-# on this self-hosted IP. Live-tested 2026: bing/yandex/serpapi work; duckduckgo
-# is intermittent; brave/startpage/google are CAPTCHA'd/blocked without a proxy.
+  request_timeout: 3600.0
+  max_request_timeout: 3600.0
 engines:
-  # ---- API-backed (never touch the search site; immune to rate-limiting) ----
-  # Google via SerpApi. Immune to the blocking that disables stock google
-  # engines. Requires SERPAPI_API_KEY in the searxng container env.
-  - name: serpapi
-    engine: serpapi
-    disabled: false
-    timeout: 15
-  # Tavily AI web search via its JSON API. Added ALONGSIDE serpapi -- each is
-  # independently additive, so if one quota runs out the other still returns
-  # results. Reads TAVILY_API_KEY from the container env. Pinned to basic depth
-  # (1 credit/call; free tier 1,000/mo, no auto-charge when exhausted).
-  - name: tavily
-    engine: tavily
-    shortcut: tav
-    disabled: false
-    timeout: 10
-  # Brave Search via the official REST API. The custom braveapi.py engine reads
-  # BRAVE_API_KEY from the container env (mirroring serpapi.py), so the key stays
-  # in .env and out of this git-tracked file. Registered under a unique name
-  # (`bravesearch`, shortcut `brvs`) so it does NOT collide with the bundled
-  # default `braveapi` entry, which ships inactive:true (api_key empty) --
-  # merging into that entry triggers an "ambiguous shortcut" crash. Immune to
-  # the "too many requests" that blocks the scraping `brave` engine. Free tier:
-  # 2000 queries/month.
-  - name: bravesearch
-    engine: bravesearch
-    shortcut: brvs
-    disabled: false
-    timeout: 10
-  # Exa neural/semantic search via its JSON API. The custom exa.py engine reads
-  # EXA_API_KEY from the container env. Complements the keyword engines -- Exa
-  # retrieves by meaning, surfacing sources Bing/DDG/SerpApi miss (measured ~32%
-  # top-10 overlap with Google). POST API, no offset pagination. Free 20k/mo.
-  - name: exa
-    engine: exa
-    shortcut: exa
-    disabled: false
-    timeout: 10
-
-  # ---- Scraping engines (work from this IP today) ----
-  - name: bing
-    disabled: false
-  - name: yandex
-    disabled: true   # consistently slow (5-9s) low-value scrape engine; pruned for latency
-  # DuckDuckGo: intermittent on this IP (returns ~5-10 results most queries,
-  # CAPTCHAs under sustained load). Strictly additive -- on a CAPTCHA it records
-  # an error and the query still returns bing/yandex/serpapi results.
-  - name: duckduckgo
-    disabled: false
-
-  # ---- Persistently blocked from this IP (need proxy or API key; see above) ----
-  - name: brave
-    disabled: true
-  - name: startpage
-    disabled: true
-  - name: google cse
-    disabled: true
+- name: serpapi
+  engine: serpapi
+  disabled: true
+  timeout: 3600.0
+  weight: 0.4
+- name: tavily
+  engine: tavily
+  shortcut: tav
+  disabled: true
+  timeout: 3600.0
+  weight: 0.4
+- name: bravesearch
+  engine: bravesearch
+  shortcut: brvs
+  disabled: false
+  timeout: 3600.0
+  weight: 0.4
+- name: exa
+  engine: exa
+  shortcut: exa
+  disabled: false
+  timeout: 3600.0
+  weight: 0.4
+- name: bing
+  disabled: false
+  weight: 0.4
+- name: yandex
+  disabled: true
+  weight: 0.4
+- name: duckduckgo
+  disabled: false
+  weight: 0.4
+- name: brave
+  disabled: true
+  weight: 0.4
+- name: startpage
+  disabled: true
+  weight: 0.4
+- name: google cse
+  disabled: false
+  weight: 0.4
+- name: zimtitles
+  engine: zimtitles
+  timeout: 3600.0
+  shortcut: zt
+  base_url: http://100.125.208.86:7777
+  kiwix_url: http://100.125.208.86:8181
+  reranker_url: http://host.docker.internal:8101
+  weight: 1.5
+  disabled: false
+  categories:
+  - general
+  - it
+  - offline
+  paging: false
+  enable_http: true
+- name: duckduckgo
+  disabled: true
+- name: google news
+  disabled: true
+- name: startpage images
+  disabled: true
+- name: startpage news
+  disabled: true
+- name: vimeo
+  disabled: true
+- name: kickass
+  disabled: true
+- name: solidtorrents
+  disabled: true
+- name: arch linux wiki
+  disabled: true
+- name: bandcamp
+  disabled: true
+- name: currency
+  disabled: true
+- name: deviantart
+  disabled: true
+- name: dictzone
+  disabled: true
+- name: etymonline
+  disabled: true
+- name: lingva
+  disabled: true
+- name: mymemory translated
+  disabled: true
+- name: pypi
+  disabled: true
+- name: wikidata
+  disabled: true
+- name: artic
+  timeout: 3600.0
+- name: devicons
+  timeout: 3600.0
+- name: gentoo
+  timeout: 3600.0
+- name: lucide
+  timeout: 3600.0
+- name: openairedatasets
+  timeout: 3600.0
+- name: openairepublications
+  timeout: 3600.0
+- name: piratebay
+  timeout: 3600.0
+- name: wordnik
+  timeout: 3600.0
+- name: wttr.in
+  timeout: 3600.0
