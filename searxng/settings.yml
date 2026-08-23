@@ -11,8 +11,8 @@ server:
   bind_address: 0.0.0.0
   port: 8080
 outgoing:
-  request_timeout: 3600.0
-  max_request_timeout: 3600.0
+  request_timeout: 12.0
+  max_request_timeout: 30.0
 engines:
 - name: serpapi
   engine: serpapi
@@ -29,13 +29,13 @@ engines:
   engine: bravesearch
   shortcut: brvs
   disabled: false
-  timeout: 3600.0
+  timeout: 12.0
   weight: 0.4
 - name: exa
   engine: exa
   shortcut: exa
   disabled: false
-  timeout: 3600.0
+  timeout: 12.0
   weight: 0.4
 - name: bing
   disabled: false
@@ -57,12 +57,12 @@ engines:
   weight: 0.4
 - name: zimtitles
   engine: zimtitles
-  timeout: 3600.0
+  timeout: 10.0
   shortcut: zt
-  base_url: http://100.125.208.86:7777
-  kiwix_url: http://100.125.208.86:8181
+  base_url: http://100.106.64.215:7777
+  kiwix_url: http://100.106.64.215:8181
   reranker_url: http://host.docker.internal:8101
-  weight: 1.5
+  weight: 0.6
   disabled: false
   categories:
   - general
