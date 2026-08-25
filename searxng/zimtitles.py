@@ -72,11 +72,27 @@ def _lead_snippet(book, path, title):
         # covers a straggler cold open.
         with urllib.request.urlopen(req, timeout=8) as resp:
             body = resp.read(32768).decode("utf-8", "ignore")
+        paras = []
         for p in _re.findall(r"<p[^>]*>(.*?)</p>", body, _re.S):
             t = _re.sub(r"<[^>]+>", " ", p)
             t = _re.sub(r"\s+", " ", t).strip()
+            if t:
+                paras.append(t)
+        # Encyclopedia pages: first substantial lead paragraph.
+        for t in paras:
             if len(t) > 60:
                 return t[:300]
+        # Wiktionary-style pages: short definition/etymology lines (20-40
+        # chars each) — merge until the snippet is meaningful. This library
+        # is 3,260 books of many kinds; a >60c-only filter left every
+        # wiktionary hit with a placeholder snippet.
+        if paras:
+            joined = ""
+            for t in paras:
+                joined = (joined + " " + t).strip()
+                if len(joined) > 60:
+                    return joined[:300]
+            return paras[0][:300]
     except Exception:
         pass
     return f"[{book}] local library article"
