@@ -32,16 +32,24 @@ def request(query, params):
 
 
 def _resolve_path(book, title):
-    """Map a title to its ZIM path via kiwix-serve suggest (exact 'path' kind)."""
-    import urllib.request
-    try:
-        u = f"{kiwix_url}/suggest?content={quote(book)}&term={quote(title)}"
-        with urllib.request.urlopen(u, timeout=3) as resp:
-            for s in json.loads(resp.read()):
-                if s.get("kind") == "path" and s.get("path"):
-                    return s["path"]
-    except Exception:
-        pass
+    """Map a title to its ZIM path via kiwix-serve suggest (exact 'path' kind).
+
+    Cold-book safety net: the suggest forces kiwix's lazy ZIM open (seconds on
+    the USB HDD), but the open keeps running server-side after a client
+    timeout — so one immediate retry usually lands on the now-open book.
+    A boot-time warmup daemon (local.kiwix.warm8181) makes cold opens rare.
+    """
+    import urllib.request, time as _time
+    u = f"{kiwix_url}/suggest?content={quote(book)}&term={quote(title)}"
+    for attempt in (8, 6):  # first attempt warms, retry harvests
+        try:
+            with urllib.request.urlopen(u, timeout=attempt) as resp:
+                for s in json.loads(resp.read()):
+                    if s.get("kind") == "path" and s.get("path"):
+                        return s["path"]
+            return None  # suggest answered but no exact path: stop retrying
+        except Exception:
+            _time.sleep(0.5)  # server-side open continues; brief pause, then retry
     return None
 
 
@@ -60,7 +68,9 @@ def _lead_snippet(book, path, title):
     try:
         u = f"{kiwix_url}/content/{quote(book)}/{quote(path)}"
         req = urllib.request.Request(u, headers={"Range": "bytes=0-32767"})
-        with urllib.request.urlopen(req, timeout=3) as resp:
+        # 8s: the book is already open after _resolve_path; generous bound
+        # covers a straggler cold open.
+        with urllib.request.urlopen(req, timeout=8) as resp:
             body = resp.read(32768).decode("utf-8", "ignore")
         for p in _re.findall(r"<p[^>]*>(.*?)</p>", body, _re.S):
             t = _re.sub(r"<[^>]+>", " ", p)
