@@ -30,8 +30,8 @@ from statistics import median
 # ---------------------------------------------------------------------------
 # Defaults (overridable via env)
 # ---------------------------------------------------------------------------
-TITLES_URL  = os.environ.get("ZIMTITLES_URL",  "http://100.125.208.86:7777")
-KIWIX_URL   = os.environ.get("KIWIX_URL",     "http://100.125.208.86:8181")
+TITLES_URL  = os.environ.get("ZIMTITLES_URL",  "http://mac-mini-von-savu.netbird.selfhosted:7777")
+KIWIX_URL   = os.environ.get("KIWIX_URL",     "http://mac-mini-von-savu.netbird.selfhosted:8181")
 RERANK_URL  = os.environ.get("RERANKER_URL",  
     "http://host.docker.internal:8101/rerank")
 

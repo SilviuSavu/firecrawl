@@ -59,8 +59,8 @@ engines:
   engine: zimtitles
   timeout: 10.0
   shortcut: zt
-  base_url: http://100.106.64.215:7777
-  kiwix_url: http://100.106.64.215:8181
+  base_url: http://mac-mini-von-savu.netbird.selfhosted:7777
+  kiwix_url: http://mac-mini-von-savu.netbird.selfhosted:8181
   reranker_url: http://host.docker.internal:8101
   weight: 0.6
   disabled: false

@@ -4,12 +4,12 @@ reranked by the local MLX gte-reranker. Replaces the 666 per-book kiwix engines 
 import json
 from urllib.parse import quote
 
-about = {"website": "http://100.125.208.86:7777"}
+about = {"website": "http://mac-mini-von-savu.netbird.selfhosted:7777"}
 categories = ["general", "it", "offline"]
 paging = False
 
-base_url = "http://100.125.208.86:7777"    
-kiwix_url = "http://100.125.208.86:8181"   
+base_url = "http://mac-mini-von-savu.netbird.selfhosted:7777"
+kiwix_url = "http://mac-mini-von-savu.netbird.selfhosted:8181"
 reranker_url = "http://host.docker.internal:8101"
 candidates = 30
 final = 12
