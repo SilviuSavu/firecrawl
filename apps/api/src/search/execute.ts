@@ -1,5 +1,4 @@
 import type { Logger } from "winston";
-import { config } from "../config";
 import { discoverTools, isAlexandriaSource } from "./alexandria";
 import { search } from "./v2";
 import { rerankWebResults } from "./v2/reranker";
@@ -111,6 +110,7 @@ export async function executeSearch(
       return {
         response: { answer: cached },
         totalResultsCount: 0,
+        developerResultsCount: 0,
         searchCredits: 0,
         scrapeCredits: 0,
         totalCredits: 0,
