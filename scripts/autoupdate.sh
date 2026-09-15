@@ -50,6 +50,11 @@ rollback() {
   log "ERROR: $1; rolled back to $(git describe --tags 2>/dev/null)"
 }
 
+# Drop stale untracked build artifacts in native/ (index.d.ts, *.node,
+# Cargo.lock): a stale sync-typed index.d.ts from a Mac build broke the
+# pdf engine typecheck when COPY shipped it into the image.
+git clean -xdf apps/api/native/
+
 if ! docker compose build api playwright-service nuq-postgres >>"$LOG" 2>&1; then
   rollback "build failed"; exit 1
 fi
