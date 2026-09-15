@@ -180,6 +180,7 @@ export interface GroundedAnswer {
 }
 
 export interface SearchV2Response {
+  tools?: import("../services/alexandria/contracts").DiscoveredTool[];
   web?: WebSearchResult[];
   images?: ImageSearchResult[];
   news?: NewsSearchResult[];

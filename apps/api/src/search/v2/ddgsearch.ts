@@ -147,6 +147,7 @@ export async function ddgSearch(
 
     const results: WebSearchResult[] = [];
     const seenUrls = new Set<string>();
+    const dispatcher = getSecureDispatcher(false);
     let isFirstPage = true;
     let nextPageData: URLSearchParams | null = params;
 
@@ -166,7 +167,7 @@ export async function ddgSearch(
           response = await undici.fetch(
             `https://html.duckduckgo.com/html?${params.toString()}`,
             {
-              dispatcher: getSecureDispatcher(false),
+              dispatcher,
               redirect: "follow",
               headers: {
                 "User-Agent": userAgent,
@@ -183,7 +184,7 @@ export async function ddgSearch(
           response = await undici.fetch(`https://html.duckduckgo.com/html`, {
             method: "POST",
             body: nextPageData.toString(),
-            dispatcher: getSecureDispatcher(false),
+            dispatcher,
             redirect: "follow",
             headers: {
               "User-Agent": userAgent,

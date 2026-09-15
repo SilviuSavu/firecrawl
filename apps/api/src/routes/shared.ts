@@ -31,7 +31,9 @@ import {
 import { getTeamBalance } from "../services/autumn/usage";
 import { getThirdPartyDataTermsRequiredResponse } from "../lib/exchange";
 import { getExchangeAccessForRequestBody } from "../lib/exchange-request";
+import { isToolsOnlySearch } from "../search/alexandria";
 import { getScrapeZDR } from "../lib/zdr-helpers";
+import { isAgentInteropSecretValid } from "../lib/agent-interop";
 
 export function checkCreditsMiddleware(
   _minimum?: number,
@@ -45,7 +47,7 @@ export function checkCreditsMiddleware(
         req.body &&
         (req.body as any).__agentInterop &&
         (req.body as any).__agentInterop.auth &&
-        (req.body as any).__agentInterop.auth === config.AGENT_INTEROP_SECRET &&
+        isAgentInteropSecretValid((req.body as any).__agentInterop.auth) &&
         (req.body as any).__agentInterop.shouldBill === false
       ) {
         return next();
@@ -113,6 +115,20 @@ export function checkCreditsMiddleware(
         // If verified, fall through to normal credit check (key is now on real account)
       }
 
+      // Tool discovery is free; provider execution reserves its own credits.
+      const sources = (req.body as any)?.sources;
+      const categories = (req.body as any)?.categories;
+      const toolsOnly =
+        req.path === "/search" && isToolsOnlySearch(sources, categories);
+      if (
+        (req.path === "/scrape" &&
+          (req.body as any)?.alexandria !== undefined) ||
+        toolsOnly
+      ) {
+        req.account = { remainingCredits: Infinity };
+        return next();
+      }
+
       if (!minimum && req.body) {
         minimum = Number(
           (req.body as any)?.limit ?? (req.body as any)?.urls?.length ?? 1,
@@ -140,8 +156,21 @@ export function checkCreditsMiddleware(
 
       const requestedCredits = minimum ?? 1;
 
+      // No org means no billable identity to gate: keyless and preview teams
+      // carry none, and neither does the DB-authentication bypass. `checkCredits`
+      // answered null for exactly those, so take its fail-open branch here
+      // rather than hand the service an org it would have to go and find.
+      const orgId = req.auth.org_id;
+      if (!orgId) {
+        req.account = { remainingCredits: Infinity };
+        return next();
+      }
+
       const autumnResult = await autumnService.checkCredits({
         teamId: req.auth.team_id,
+        // The ACUC already carries the org, so the credit check does not have
+        // to read `teams.org_id` for it.
+        orgId,
         value: requestedCredits,
         properties: {
           source: "checkCreditsMiddleware",
@@ -166,19 +195,42 @@ export function checkCreditsMiddleware(
       const remainingCredits = success ? Infinity : autumnResult.remaining;
       req.account = { remainingCredits };
       if (!success) {
+        const requestedLimit = Number((req.body as any)?.limit);
+        const clampedLimit = Math.min(requestedLimit, remainingCredits);
         if (
           !_minimum &&
           req.body &&
           (req.body as any).limit !== undefined &&
-          remainingCredits > 0
+          Number.isFinite(clampedLimit) &&
+          clampedLimit > 0
         ) {
-          logger.warn("Adjusting limit to remaining credits", {
+          // `remaining` is the team's credit balance, and a per-API-key spend
+          // limit never lowers it, so a key over its own cap still reports a
+          // healthy balance here. Re-check the clamped limit so only a genuinely
+          // low team balance gets shrunk to fit; a per-key denial falls through
+          // to the 402 below. A null re-check keeps the fail-open behavior.
+          const clampedResult = await autumnService.checkCredits({
             teamId: req.auth.team_id,
-            remainingCredits,
-            request: req.body,
+            orgId,
+            value: clampedLimit,
+            properties: {
+              source: "checkCreditsMiddleware:clamp",
+              path: req.path,
+              apiKeyId: req.acuc?.api_key_id ?? null,
+            },
+            featureId,
           });
-          (req.body as any).limit = remainingCredits;
-          return next();
+
+          if (clampedResult === null || clampedResult.allowed) {
+            logger.warn("Adjusting limit to remaining credits", {
+              teamId: req.auth.team_id,
+              remainingCredits,
+              clampedLimit,
+              request: req.body,
+            });
+            (req.body as any).limit = clampedLimit;
+            return next();
+          }
         }
 
         const currencyName = req.acuc?.is_extract ? "tokens" : "credits";
@@ -218,10 +270,17 @@ export function checkCreditsMiddleware(
 
 export function authMiddleware(
   rateLimiterMode: RateLimiterMode,
-  options: { allowKeyless?: boolean } = {},
+  options: {
+    allowKeyless?: boolean | ((req: RequestWithMaybeAuth) => boolean);
+  } = {},
 ): (req: RequestWithMaybeAuth, res: Response, next: NextFunction) => void {
   return (req, res, next) => {
     (async () => {
+      const allowKeyless =
+        typeof options.allowKeyless === "function"
+          ? options.allowKeyless(req)
+          : options.allowKeyless;
+
       let currentRateLimiterMode = rateLimiterMode;
       if (
         currentRateLimiterMode === RateLimiterMode.Extract &&
@@ -234,21 +293,24 @@ export function authMiddleware(
       //   currentRateLimiterMode = RateLimiterMode.ScrapeAgentPreview;
       // }
 
-      const auth = await authenticateUser(
-        req,
-        res,
-        currentRateLimiterMode,
-        options,
-      );
+      const auth = await authenticateUser(req, res, currentRateLimiterMode, {
+        ...options,
+        allowKeyless,
+      });
 
       if (!auth.success) {
         if (!res.headersSent) {
           if (auth.status === 401 || auth.agentAuthDiscovery) {
             applyAgentAuthDiscoveryHeader(res);
           }
-          return res
-            .status(auth.status)
-            .json({ success: false, error: auth.error });
+          return res.status(auth.status).json({
+            success: false,
+            error: auth.error,
+            ...(auth.keylessReason ? { reason: auth.keylessReason } : {}),
+            ...(auth.retryAfterSeconds
+              ? { retry_after_seconds: auth.retryAfterSeconds }
+              : {}),
+          });
         } else {
           return;
         }
@@ -341,6 +403,7 @@ function blocklistGate(
       !canUseExchange &&
       isUrlBlocked(req.body.url, req.acuc?.flags ?? null, {
         team_id: req.acuc?.team_id ?? null,
+        org_id: req.acuc?.org_id ?? null,
         origin: typeof req.body.origin === "string" ? req.body.origin : null,
       })
     ) {

@@ -51,7 +51,7 @@ function domainMatchesEntry(domain: string, entry: string): boolean {
   return domain === normalized || domain.endsWith(`.${normalized}`);
 }
 
-function domainMatchesList(domain: string, entries: string[]): boolean {
+export function domainMatchesList(domain: string, entries: string[]): boolean {
   return entries.some(entry => domainMatchesEntry(domain, entry));
 }
 
@@ -167,6 +167,18 @@ export function evaluatePolicy(
   }
 
   if (verdict !== null) {
+    // Zscaler mode blocks on the org's denied-categories selection. The
+    // verdict's categories are the normalized union of urlClassifications
+    // and urlClassificationsWithSecurityAlert.
+    if (policy.mode === "zscaler" && policy.zscaler) {
+      const denied = verdict.categories.filter(category =>
+        policy.zscaler!.deniedCategories.includes(category),
+      );
+      if (denied.length > 0) {
+        return { allowed: false, rule: "denied-category", ...base };
+      }
+    }
+
     if (
       verdict.riskScore !== null &&
       verdict.riskScore >= policy.riskScoreThreshold
@@ -177,9 +189,10 @@ export function evaluatePolicy(
     return { allowed: true, rule: "default-allow", ...base };
   }
 
-  // No verdict: the provider failed or was unavailable (mode "off" never
-  // reaches here via checkUrl). Fail open or closed per the org policy.
-  if (policy.mode === "off") {
+  // No verdict: the provider failed or was unavailable (modes "off" and
+  // "manual-only" never consult one, so they never fail). Otherwise fail open
+  // or closed per the org policy.
+  if (policy.mode === "off" || policy.mode === "manual-only") {
     return { allowed: true, rule: "default-allow", ...base };
   }
   return {

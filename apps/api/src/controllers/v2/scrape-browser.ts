@@ -17,7 +17,7 @@ import {
   didBrowserSessionUsePrompt,
   clearBrowserSessionPromptFlag,
 } from "../../lib/browser-sessions";
-import {} from "../../lib/concurrency-limit";
+import { getEffectiveConcurrencyLimit } from "../../lib/concurrency-limit";
 import {
   getCombinedTeamActiveCount,
   mirrorExternalSlotAcquire,
@@ -43,17 +43,23 @@ import {
 } from "../../lib/scrape-interact/browser-agent";
 import { sanitizeUrlForTrace } from "../../lib/scrape-interact/langsmith";
 import { getScrapeZDR } from "../../lib/zdr-helpers";
+import {
+  getSafeMode,
+  SAFE_MODE_BROWSER_UNSUPPORTED_MESSAGE,
+} from "../../lib/safe-mode";
 import { RequestWithAuth, ScrapeOptions } from "./types";
 import { billTeam } from "../../services/billing/credit_billing";
 import {
   KEYLESS_FREE_TIER_LIMIT_MESSAGE,
   adjustKeylessCredits,
   keylessTeamUuid,
+  keylessLimitBody,
   logKeylessCreditUsage,
   reserveKeylessCredits,
 } from "../../lib/keyless";
 import { enqueueBrowserSessionActivity } from "../../lib/browser-session-activity";
 import { logRequest } from "../../services/logging/log_job";
+import { externalRequestId } from "../../lib/external-request-id";
 import { integrationSchema } from "../../utils/integration";
 import { supabaseGetScrapeById } from "../../lib/supabase-jobs";
 import {
@@ -116,6 +122,7 @@ interface BrowserDeleteResponse {
   success: boolean;
   sessionDurationMs?: number;
   creditsBilled?: number;
+  cleanupQueued?: boolean;
   error?: string;
 }
 
@@ -132,6 +139,13 @@ export async function scrapeInteractController(
   res: Response<BrowserExecuteResponse>,
 ) {
   req.body = browserExecuteRequestSchema.parse(req.body);
+
+  if (getSafeMode(req.acuc?.flags)) {
+    return res.status(403).json({
+      success: false,
+      error: SAFE_MODE_BROWSER_UNSUPPORTED_MESSAGE,
+    });
+  }
 
   const scrapeId = req.params.jobId;
   const { code: rawCode, prompt, language, timeout, origin } = req.body;
@@ -416,19 +430,39 @@ export async function scrapeStopInteractiveBrowserController(
   });
   logger.info("Deleting browser session");
 
-  let sessionDurationMs: number | undefined;
+  let deleteResult: BrowserServiceDeleteResponse;
   try {
-    const deleteResult =
-      await browserServiceRequest<BrowserServiceDeleteResponse>(
-        "DELETE",
-        `/browsers/${session.browser_id}`,
-      );
-    sessionDurationMs = deleteResult?.sessionDurationMs;
+    deleteResult = await browserServiceRequest<BrowserServiceDeleteResponse>(
+      "DELETE",
+      `/browsers/${session.browser_id}`,
+    );
   } catch (err) {
-    logger.warn("Failed to delete browser session via browser service", {
+    logger.error("Browser service did not confirm session release", {
       error: err,
     });
+    return res.status(502).json({
+      success: false,
+      error: "Browser session release was not confirmed.",
+    });
   }
+
+  if (
+    !deleteResult ||
+    !deleteResult.ok ||
+    !deleteResult.cleanupQueued ||
+    !Number.isFinite(deleteResult.sessionDurationMs) ||
+    deleteResult.sessionDurationMs < 0
+  ) {
+    logger.error("Browser service returned an invalid release confirmation", {
+      deleteResult,
+    });
+    return res.status(502).json({
+      success: false,
+      error: "Browser session release was not confirmed.",
+    });
+  }
+
+  const durationMs = deleteResult.sessionDurationMs;
 
   const claimed = await claimBrowserSessionDestroyed(session.id);
 
@@ -448,14 +482,12 @@ export async function scrapeStopInteractiveBrowserController(
     logger.info("Session already destroyed by another path, skipping billing", {
       sessionId: session.id,
     });
-    return res.status(200).json({ success: true });
+    return res.status(200).json({
+      success: true,
+      sessionDurationMs: durationMs,
+      cleanupQueued: true,
+    });
   }
-
-  const wallClockMs = Date.now() - new Date(session.created_at).getTime();
-  const durationMs =
-    sessionDurationMs && sessionDurationMs > 0
-      ? sessionDurationMs
-      : wallClockMs;
 
   const usedPrompt = await didBrowserSessionUsePrompt(session.id);
   const rate = usedPrompt
@@ -473,10 +505,17 @@ export async function scrapeStopInteractiveBrowserController(
     });
   });
 
-  billTeam(req.auth.team_id, creditsBilled, req.acuc?.api_key_id ?? null, {
-    endpoint: "interact",
-    jobId: session.id,
-  }).catch(error => {
+  billTeam(
+    req.auth.team_id,
+    req.acuc?.org_id ?? null,
+    creditsBilled,
+    req.acuc?.api_key_id ?? null,
+    {
+      endpoint: "interact",
+      jobId: session.id,
+      chargeId: `${session.id}:scrape-browser`,
+    },
+  ).catch(error => {
     logger.error("Failed to bill team for interact session", {
       error,
       creditsBilled,
@@ -504,6 +543,7 @@ export async function scrapeStopInteractiveBrowserController(
     success: true,
     sessionDurationMs: durationMs,
     creditsBilled,
+    cleanupQueued: true,
   });
 }
 
@@ -558,24 +598,27 @@ async function createSessionForScrape(
   if (!reservation.ok) {
     return {
       status: 429,
-      body: {
-        success: false,
-        error: KEYLESS_FREE_TIER_LIMIT_MESSAGE,
-      },
+      body: await keylessLimitBody(req.auth.team_id, "v2_browser"),
       error: true,
     };
   }
   const keylessReserved = estimatedCredits;
 
-  const autumnResult = await autumnService.checkCredits({
-    teamId: req.auth.team_id,
-    value: estimatedCredits,
-    properties: {
-      source: "scrapeBrowserCreate",
-      path: req.path,
-      apiKeyId: req.acuc?.api_key_id ?? null,
-    },
-  });
+  // No org, no Autumn customer to gate against: fail open, exactly as
+  // checkCredits answered for an identity it could not name.
+  const orgId = req.acuc?.org_id ?? null;
+  const autumnResult = orgId
+    ? await autumnService.checkCredits({
+        teamId: req.auth.team_id,
+        orgId,
+        value: estimatedCredits,
+        properties: {
+          source: "scrapeBrowserCreate",
+          path: req.path,
+          apiKeyId: req.acuc?.api_key_id ?? null,
+        },
+      })
+    : null;
 
   if (autumnResult !== null && !autumnResult.allowed) {
     adjustKeylessCredits(req.auth.team_id, -keylessReserved).catch(() => {});
@@ -590,7 +633,10 @@ async function createSessionForScrape(
   }
 
   // Active session limit — uses the same concurrency pool as scrape/crawl
-  const concurrencyLimit = req.acuc?.concurrency ?? 2;
+  const concurrencyLimit = await getEffectiveConcurrencyLimit(
+    req.auth.team_id,
+    req.acuc?.org_id ?? null,
+  );
   const activeCount = await getCombinedTeamActiveCount(req.auth.team_id);
   if (activeCount >= concurrencyLimit) {
     adjustKeylessCredits(req.auth.team_id, -keylessReserved).catch(() => {});
@@ -633,6 +679,7 @@ async function createSessionForScrape(
           // relying on the browser service's implicit default, matching the
           // standalone browser create path.
           record: true,
+          customerId: req.auth.team_id,
           ...(activityTtl !== undefined ? { activityTtl } : {}),
           ...(persistentStorage !== undefined ? { persistentStorage } : {}),
         },
@@ -793,6 +840,7 @@ async function createSessionForScrape(
       id: sessionId,
       kind: "interact",
       api_version: "v2",
+      external_request_id: externalRequestId(req),
       team_id: req.auth.team_id,
       target_hint: "Interact session",
       origin: req.body?.origin ?? "api",
@@ -803,6 +851,8 @@ async function createSessionForScrape(
     const session = await insertBrowserSession({
       id: sessionId,
       team_id: req.auth.team_id,
+      request_id: sessionId,
+      should_bill: true,
       scrape_id: scrapeId,
       browser_id: svcResponse.sessionId,
       workspace_id: "",

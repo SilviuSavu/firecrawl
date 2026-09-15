@@ -13,9 +13,10 @@ from firecrawl.v2.methods.agent import (
     agent,
     get_agent_status,
     cancel_agent,
+    list_agents,
     wait_agent
 )
-from firecrawl.v2.types import AgentResponse
+from firecrawl.v2.types import AgentListResponse, AgentResponse
 from firecrawl.v2.utils.error_handler import BadRequestError
 
 
@@ -27,7 +28,7 @@ class TestAgentMethods:
         self.mock_client = Mock()
         self.job_id = "test-agent-123"
         
-        
+        # Sample agent response
         self.sample_response = {
             "success": True,
             "id": self.job_id,
@@ -60,17 +61,17 @@ class TestAgentMethods:
             prompt="Find information about Firecrawl"
         )
         
-        
+        # Check that post was called with correct endpoint
         self.mock_client.post.assert_called_once()
         call_args = self.mock_client.post.call_args
         assert call_args[0][0] == "/v2/agent"
         
-        
+        # Check request body (second positional argument)
         body = call_args[0][1]
         assert body["prompt"] == "Find information about Firecrawl"
         assert "urls" not in body
         
-        
+        # Check result
         assert isinstance(result, AgentResponse)
         assert result.id == self.job_id
         assert result.status == "processing"
@@ -204,10 +205,10 @@ class TestAgentMethods:
         
         result = get_agent_status(self.mock_client, self.job_id)
         
-        
+        # Check that get was called with correct endpoint
         self.mock_client.get.assert_called_once_with(f"/v2/agent/{self.job_id}")
         
-        
+        # Check result
         assert isinstance(result, AgentResponse)
         assert result.id == self.job_id
         assert result.status == "completed"
@@ -217,21 +218,78 @@ class TestAgentMethods:
         mock_response = Mock()
         mock_response.ok = True
         mock_response.json.return_value = {"success": True}
-        
+
         self.mock_client.delete.return_value = mock_response
-        
+
         result = cancel_agent(self.mock_client, self.job_id)
-        
-        
+
+        # Check that delete was called with correct endpoint
         self.mock_client.delete.assert_called_once_with(f"/v2/agent/{self.job_id}")
-        
-        
+
+        # Check result
         assert result is True
+
+    def test_list_agents(self):
+        """Test listing agent runs without a before param."""
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            "success": True,
+            "agents": [
+                {
+                    "id": "agent-1",
+                    "createdAt": "2026-08-31T12:00:00.000Z",
+                    "targetHint": "https://example.com",
+                    "origin": "api",
+                    "settings": {"hidden": False, "starred": True, "label": "prod"},
+                    "status": "completed",
+                    "options": {
+                        "urls": ["https://example.com"],
+                        "prompt": "Find the pricing",
+                        "model": "spark-1-pro",
+                    },
+                }
+            ],
+        }
+
+        self.mock_client.get.return_value = mock_response
+
+        result = list_agents(self.mock_client)
+
+        self.mock_client.get.assert_called_once_with("/v2/agent")
+
+        assert isinstance(result, AgentListResponse)
+        assert result.success is True
+        assert len(result.agents) == 1
+        assert result.agents[0].id == "agent-1"
+        assert result.agents[0].created_at == "2026-08-31T12:00:00.000Z"
+        assert result.agents[0].target_hint == "https://example.com"
+        assert result.agents[0].settings.starred is True
+        assert result.agents[0].settings.label == "prod"
+        assert result.agents[0].options.prompt == "Find the pricing"
+        assert result.next is None
+
+    def test_list_agents_with_before(self):
+        """Test listing agent runs passes before as a query param."""
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            "success": True,
+            "agents": [],
+            "next": "https://api.firecrawl.dev/v2/agent?before=1756600000000",
+        }
+
+        self.mock_client.get.return_value = mock_response
+
+        result = list_agents(self.mock_client, before=1756600000000)
+
+        self.mock_client.get.assert_called_once_with("/v2/agent?before=1756600000000")
+        assert result.next == "https://api.firecrawl.dev/v2/agent?before=1756600000000"
 
     @patch('time.sleep')
     def test_wait_agent_completed(self, mock_sleep):
         """Test waiting for agent to complete."""
-        
+        # First call returns processing, second returns completed
         mock_response_processing = Mock()
         mock_response_processing.ok = True
         mock_response_processing.json.return_value = {
@@ -251,7 +309,7 @@ class TestAgentMethods:
         
         result = wait_agent(self.mock_client, self.job_id, poll_interval=1)
         
-        
+        # Should have called get twice
         assert self.mock_client.get.call_count == 2
         assert result.status == "completed"
         assert mock_sleep.call_count == 1
@@ -269,22 +327,22 @@ class TestAgentMethods:
         
         self.mock_client.get.return_value = mock_response
         
-        
-        with patch('time.time', side_effect=[0, 0, 5]):  
+        # Mock time.time to simulate timeout
+        with patch('time.time', side_effect=[0, 0, 5]):  # Start at 0, timeout at 5
             result = wait_agent(
                 self.mock_client,
                 self.job_id,
                 poll_interval=1,
-                timeout=3  
+                timeout=3  # Timeout after 3 seconds
             )
         
-        
+        # Should return processing status due to timeout
         assert result.status == "processing"
 
     @patch('time.sleep')
     def test_agent_complete_flow(self, mock_sleep):
         """Test the complete agent flow (start + wait)."""
-        
+        # Mock start_agent response
         mock_start_response = Mock()
         mock_start_response.ok = True
         mock_start_response.json.return_value = {
@@ -293,7 +351,7 @@ class TestAgentMethods:
             "status": "processing"
         }
         
-        
+        # Mock get_agent_status responses
         mock_status_response = Mock()
         mock_status_response.ok = True
         mock_status_response.json.return_value = self.sample_response
@@ -308,11 +366,11 @@ class TestAgentMethods:
             poll_interval=1
         )
         
-        
+        # Should have called post once and get once
         assert self.mock_client.post.call_count == 1
         assert self.mock_client.get.call_count == 1
         
-        
+        # Check result
         assert isinstance(result, AgentResponse)
         assert result.status == "completed"
         assert result.data is not None
@@ -335,7 +393,7 @@ class TestAgentMethods:
             prompt="Quick task"
         )
         
-        
+        # Should only call post, not get
         assert self.mock_client.post.call_count == 1
         assert self.mock_client.get.call_count == 0
         assert result.status == "completed"
@@ -346,7 +404,7 @@ class TestAgentMethods:
         mock_response.ok = False
         mock_response.status_code = 400
         mock_response.text = "Bad Request"
-        
+        # Mock response.json() to return error details
         mock_response.json.return_value = {
             "error": "Invalid request",
             "details": "Bad Request"
@@ -361,7 +419,7 @@ class TestAgentMethods:
                 prompt="Test prompt"
             )
         
-        
+        # Verify the exception has the correct status code
         assert exc_info.value.status_code == 400
         assert "agent" in str(exc_info.value).lower()
 

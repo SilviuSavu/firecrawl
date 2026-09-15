@@ -20,6 +20,7 @@ import {
 } from "../v2/types";
 import { createWebhookSender, WebhookEvent } from "../../services/webhook";
 import { logRequest } from "../../services/logging/log_job";
+import { externalRequestId } from "../../lib/external-request-id";
 import { getScrapeZDR } from "../../lib/zdr-helpers";
 
 import { config } from "../../config";
@@ -30,6 +31,8 @@ import {
 import { UnsafeDomainBlockedError } from "../../lib/threat-protection/error";
 import { calculateThreatScanCredits } from "../../lib/scrape-billing";
 import { billTeam } from "../../services/billing/credit_billing";
+import { emitRejectedScrapeActivityEvents } from "../../lib/siem-logging";
+import { UnsupportedSiteError } from "../../lib/error";
 async function oldExtract(
   req: RequestWithAuth<{}, ExtractResponse, ExtractRequest>,
   res: Response<ExtractResponse>,
@@ -111,6 +114,7 @@ export async function extractController(
   const selfHosted = config.USE_DB_AUTHENTICATION !== true;
   const originalRequest = { ...req.body };
   req.body = extractRequestSchema.parse(req.body);
+  const extractId = uuidv7();
 
   if (getScrapeZDR(req.acuc?.flags) === "forced") {
     return res.status(400).json({
@@ -124,9 +128,26 @@ export async function extractController(
     req.body.urls?.filter((url: string) =>
       isUrlBlocked(url, req.acuc?.flags ?? null, {
         team_id: req.auth.team_id,
+        org_id: req.acuc?.org_id ?? null,
         origin: req.body.origin ?? null,
       }),
     ) ?? [];
+
+  emitRejectedScrapeActivityEvents(
+    invalidURLs.map(url => ({
+      scrapeId: uuidv7(),
+      requestId: extractId,
+      endpoint: "extract",
+      teamId: req.auth.team_id,
+      apiKeyId: req.acuc?.api_key_id ?? null,
+      auditMetadata: req.body.scrapeOptions?.auditMetadata,
+      url,
+      error: new UnsupportedSiteError(),
+      origin: req.body.origin ?? "api",
+      integration: req.body.integration,
+      zeroDataRetention: false,
+    })),
+  );
 
   const createdAt = Date.now();
 
@@ -170,9 +191,15 @@ export async function extractController(
     if (threatScanCredits > 0) {
       billTeam(
         req.auth.team_id,
+        req.acuc?.org_id ?? null,
         threatScanCredits,
         req.acuc?.api_key_id ?? null,
-        { endpoint: "extract" },
+        {
+          endpoint: "extract",
+          // Suffixed: the extract's MAIN charge (fire-0) uses the bare
+          // extractId — a shared key would collapse the two into one charge.
+          chargeId: `${extractId}:threat`,
+        },
       ).catch(error => {
         _logger.error(
           `Failed to bill team ${req.auth.team_id} for ${threatScanCredits} threat scan credit(s): ${error}`,
@@ -180,6 +207,27 @@ export async function extractController(
       });
     }
     if (blocked.length > 0) {
+      emitRejectedScrapeActivityEvents(
+        blocked
+          .filter(blockedUrl => !invalidURLs.includes(blockedUrl.url))
+          .map(blockedUrl => ({
+            scrapeId: uuidv7(),
+            requestId: extractId,
+            endpoint: "extract",
+            teamId: req.auth.team_id,
+            apiKeyId: req.acuc?.api_key_id ?? null,
+            auditMetadata: req.body.scrapeOptions?.auditMetadata,
+            url: blockedUrl.url,
+            error: new UnsafeDomainBlockedError(
+              blockedUrl.url,
+              blockedUrl.decision,
+            ),
+            threatDecisions: [blockedUrl.decision],
+            origin: req.body.origin ?? "api",
+            integration: req.body.integration,
+            zeroDataRetention: false,
+          })),
+      );
       if (req.body.ignoreInvalidURLs) {
         invalidURLs.push(...blocked.map(x => x.url));
       } else {
@@ -194,8 +242,6 @@ export async function extractController(
     }
   }
 
-  const extractId = uuidv7();
-
   _logger.info("Extract starting...", {
     request: req.body,
     originalRequest,
@@ -209,6 +255,7 @@ export async function extractController(
     id: extractId,
     kind: "extract",
     api_version: "v1",
+    external_request_id: externalRequestId(req),
     team_id: req.auth.team_id,
     origin: req.body.origin ?? "api",
     integration: req.body.integration,

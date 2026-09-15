@@ -14,6 +14,7 @@ interface SearchOptions {
   lang?: string;
   country?: string;
   location?: string;
+  safe?: boolean;
   num_results: number;
   page?: number;
   type?: SearchResultType | SearchResultType[];
@@ -243,6 +244,8 @@ export async function searxng_search(
         pageno: page,
         format: "json",
         ...(timeRange ? { time_range: timeRange } : {}),
+        // 2 = strict; omitted otherwise so the instance default applies
+        ...(options.safe ? { safesearch: 2 } : {}),
       },
       { timeout, maxRetries },
     );

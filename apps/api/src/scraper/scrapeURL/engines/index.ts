@@ -7,11 +7,9 @@ import {
   scrapeURLWithFireEngineChromeCDP,
   scrapeURLWithFireEngineTLSClient,
 } from "./fire-engine";
-import {
-  exchangeMaxReasonableTime,
-  scrapeURLWithExchange,
-} from "./exchange";
+import { exchangeMaxReasonableTime, scrapeURLWithExchange } from "./exchange";
 import { pdfMaxReasonableTime, scrapePDF } from "./pdf";
+import { imageMaxReasonableTime, scrapeImage } from "./image";
 import { fetchMaxReasonableTime, scrapeURLWithFetch } from "./fetch";
 import {
   playwrightMaxReasonableTime,
@@ -29,12 +27,22 @@ import {
   isXTwitterUrl,
 } from "./x-twitter";
 import { queryEngpickerVerdict, useIndex } from "../../../services";
+import { useFireEngine } from "./fire-engine/available";
 import { hasFormatOfType } from "../../../lib/format-utils";
-import { getPDFMaxPages } from "../../../controllers/v2/types";
-import type { PdfMetadata } from "./pdf/types";
+import {
+  getPDFBlocks,
+  getPDFPageMarkdown,
+  getPDFPageMarkers,
+} from "../../../controllers/v2/types";
+import type { PdfMetadata, PdfPageBlocks } from "./pdf/types";
 import { BrandingProfile } from "../../../types/branding";
-import { BrandingNotSupportedError } from "../error";
+import {
+  AgentIndexOnlyError,
+  BrandingNotSupportedError,
+  NoCachedDataError,
+} from "../error";
 import { isUrlBlocked } from "../../WebScraper/utils/blocklist";
+import { hasCustomRequestContext } from "../lib/request-context";
 import {
   canUseExchangeForRequest,
   type ExchangeScrapeMetadata,
@@ -52,14 +60,12 @@ export type Engine =
   | "fetch"
   | "pdf"
   | "document"
+  | "image"
   | "index"
   | "index;documents"
   | "wikipedia"
   | "x-twitter";
 
-const useFireEngine =
-  config.FIRE_ENGINE_BETA_URL !== "" &&
-  config.FIRE_ENGINE_BETA_URL !== undefined;
 const usePlaywright =
   config.PLAYWRIGHT_MICROSERVICE_URL !== "" &&
   config.PLAYWRIGHT_MICROSERVICE_URL !== undefined;
@@ -90,6 +96,10 @@ const engines: Engine[] = [
   "fetch",
   "pdf",
   "document",
+  // Image OCR needs FirePDF; without it the engine would only be a wasted
+  // tail download on every failed scrape. Per-team enablement is decided
+  // where images are routed (the imageOcr team flag), not here.
+  ...(config.FIRE_PDF_BASE_URL ? ["image" as const] : []),
 ];
 
 const featureFlags = [
@@ -99,6 +109,7 @@ const featureFlags = [
   "screenshot@fullScreen",
   "pdf",
   "document",
+  "image",
   "audio",
   "video",
   "atsv",
@@ -124,6 +135,7 @@ const featureFlagOptions: {
   "screenshot@fullScreen": { priority: 10 },
   pdf: { priority: 100 },
   document: { priority: 100 },
+  image: { priority: 100 },
   audio: { priority: 100 },
   video: { priority: 100 },
   atsv: { priority: 90 }, // NOTE: should atsv force to tlsclient? adjust priority if not
@@ -140,7 +152,10 @@ export type EngineScrapeResult = {
   url: string;
 
   html: string;
+  rawBase64?: string;
   markdown?: string;
+  pages?: Array<{ pageNumber: number; markdown: string }>;
+  blocks?: PdfPageBlocks[];
   json?: unknown;
   statusCode: number;
   error?: string;
@@ -178,7 +193,7 @@ export type EngineScrapeResult = {
 const engineHandlers: {
   [E in Engine]: (meta: Meta) => Promise<EngineScrapeResult>;
 } = {
-  "exchange": scrapeURLWithExchange,
+  exchange: scrapeURLWithExchange,
   index: scrapeURLWithIndex,
   "index;documents": scrapeURLWithIndex,
   "fire-engine;chrome-cdp": scrapeURLWithFireEngineChromeCDP,
@@ -191,6 +206,7 @@ const engineHandlers: {
   fetch: scrapeURLWithFetch,
   pdf: scrapePDF,
   document: scrapeDocument,
+  image: scrapeImage,
   wikipedia: scrapeURLWithWikipedia,
   "x-twitter": scrapeURLWithXTwitter,
 };
@@ -198,7 +214,7 @@ const engineHandlers: {
 const engineMRTs: {
   [E in Engine]: (meta: Meta) => number;
 } = {
-  "exchange": exchangeMaxReasonableTime,
+  exchange: exchangeMaxReasonableTime,
   index: indexMaxReasonableTime,
   "index;documents": indexMaxReasonableTime,
   "fire-engine;chrome-cdp": meta =>
@@ -217,6 +233,7 @@ const engineMRTs: {
   fetch: fetchMaxReasonableTime,
   pdf: pdfMaxReasonableTime,
   document: documentMaxReasonableTime,
+  image: imageMaxReasonableTime,
   wikipedia: wikipediaMaxReasonableTime,
   "x-twitter": xTwitterMaxReasonableTime,
 };
@@ -231,7 +248,7 @@ const engineOptions: {
     quality: number;
   };
 } = {
-  "exchange": {
+  exchange: {
     features: {
       actions: false,
       waitFor: false,
@@ -239,6 +256,7 @@ const engineOptions: {
       "screenshot@fullScreen": false,
       pdf: false,
       document: false,
+      image: false,
       audio: false,
       video: false,
       atsv: false,
@@ -260,6 +278,7 @@ const engineOptions: {
       "screenshot@fullScreen": true,
       pdf: false,
       document: false,
+      image: false,
       audio: false,
       video: false,
       atsv: false,
@@ -281,6 +300,7 @@ const engineOptions: {
       "screenshot@fullScreen": true, // through actions transform
       pdf: false,
       document: false,
+      image: false,
       audio: true,
       video: true,
       atsv: false,
@@ -302,6 +322,7 @@ const engineOptions: {
       "screenshot@fullScreen": true, // through actions transform
       pdf: false,
       document: false,
+      image: false,
       audio: true,
       video: true,
       atsv: false,
@@ -323,6 +344,7 @@ const engineOptions: {
       "screenshot@fullScreen": true,
       pdf: true,
       document: true,
+      image: true,
       audio: false,
       video: false,
       atsv: false,
@@ -344,6 +366,7 @@ const engineOptions: {
       "screenshot@fullScreen": true, // through actions transform
       pdf: false,
       document: false,
+      image: false,
       audio: true,
       video: true,
       atsv: false,
@@ -365,6 +388,7 @@ const engineOptions: {
       "screenshot@fullScreen": true, // through actions transform
       pdf: false,
       document: false,
+      image: false,
       audio: true,
       video: true,
       atsv: false,
@@ -386,6 +410,7 @@ const engineOptions: {
       "screenshot@fullScreen": false,
       pdf: false,
       document: false,
+      image: false,
       audio: false,
       video: false,
       atsv: false,
@@ -407,6 +432,7 @@ const engineOptions: {
       "screenshot@fullScreen": false,
       pdf: false,
       document: false,
+      image: false,
       audio: true,
       video: true,
       atsv: true,
@@ -428,6 +454,7 @@ const engineOptions: {
       "screenshot@fullScreen": false,
       pdf: false,
       document: false,
+      image: false,
       audio: true,
       video: true,
       atsv: true,
@@ -449,6 +476,7 @@ const engineOptions: {
       "screenshot@fullScreen": false,
       pdf: false,
       document: false,
+      image: false,
       audio: false,
       video: false,
       atsv: false,
@@ -462,6 +490,11 @@ const engineOptions: {
     },
     quality: 5,
   },
+  // The file engines (pdf, document, image) pass skipTlsVerification through
+  // to their direct downloads, and a browser handoff already applied it
+  // upstream, so they declare it supported: otherwise every cache-miss file
+  // scrape carries a misleading "may be partial" warning, since v2 defaults
+  // the option to true.
   pdf: {
     features: {
       actions: false,
@@ -470,12 +503,13 @@ const engineOptions: {
       "screenshot@fullScreen": false,
       pdf: true,
       document: false,
+      image: false,
       audio: false,
       video: false,
       atsv: false,
       location: false,
       mobile: false,
-      skipTlsVerification: false,
+      skipTlsVerification: true,
       useFastMode: true,
       stealthProxy: true, // kinda...
       branding: false,
@@ -491,12 +525,35 @@ const engineOptions: {
       "screenshot@fullScreen": false,
       pdf: false,
       document: true,
+      image: false,
       audio: false,
       video: false,
       atsv: false,
       location: false,
       mobile: false,
-      skipTlsVerification: false,
+      skipTlsVerification: true,
+      useFastMode: true,
+      stealthProxy: true, // kinda...
+      branding: false,
+      disableAdblock: true,
+    },
+    quality: -20,
+  },
+  image: {
+    features: {
+      actions: false,
+      waitFor: false,
+      screenshot: false,
+      "screenshot@fullScreen": false,
+      pdf: false,
+      document: false,
+      image: true,
+      audio: false,
+      video: false,
+      atsv: false,
+      location: false,
+      mobile: false,
+      skipTlsVerification: true,
       useFastMode: true,
       stealthProxy: true, // kinda...
       branding: false,
@@ -512,6 +569,7 @@ const engineOptions: {
       "screenshot@fullScreen": false,
       pdf: false,
       document: false,
+      image: false,
       audio: false,
       video: false,
       atsv: false,
@@ -533,6 +591,7 @@ const engineOptions: {
       "screenshot@fullScreen": false,
       pdf: false,
       document: false,
+      image: false,
       audio: false,
       video: false,
       atsv: false,
@@ -564,14 +623,14 @@ export function shouldUseIndex(meta: Meta) {
     config.FIRECRAWL_INDEX_WRITE_ONLY !== true &&
     !hasFormatOfType(meta.options.formats, "changeTracking") &&
     !hasFormatOfType(meta.options.formats, "branding") &&
-    // Skip index if a non-default PDF maxPages is specified
-    getPDFMaxPages(meta.options.parsers) === undefined &&
+    // The URL index does not yet persist physical-page or typed-block
+    // capability metadata, and its markdown never carries page markers.
+    !getPDFPageMarkdown(meta.options.parsers) &&
+    !getPDFBlocks(meta.options.parsers) &&
+    !getPDFPageMarkers(meta.options.parsers) &&
     !hasCustomScreenshotSettings &&
     meta.options.maxAge !== 0 &&
-    (meta.options.headers === undefined ||
-      Object.keys(meta.options.headers).length === 0) &&
-    (meta.options.actions === undefined || meta.options.actions.length === 0) &&
-    meta.options.profile === undefined
+    !hasCustomRequestContext(meta.options)
   );
 }
 
@@ -581,6 +640,27 @@ export async function buildFallbackList(meta: Meta): Promise<
     unsupportedFeatures: Set<FeatureFlag>;
   }[]
 > {
+  if (hasFormatOfType(meta.options.formats, "rawBase64")) {
+    if (meta.internalOptions.agentIndexOnly) {
+      throw new AgentIndexOnlyError();
+    }
+
+    if (meta.options.minAge !== undefined) {
+      throw new NoCachedDataError();
+    }
+
+    if (meta.options.lockdown || (!useFireEngine && meta.mock === null)) {
+      return [];
+    }
+
+    return [
+      {
+        engine: "fire-engine;chrome-cdp",
+        unsupportedFeatures: new Set(),
+      },
+    ];
+  }
+
   if (
     !meta.internalOptions.agentIndexOnly &&
     meta.internalOptions.forceEngine === undefined
@@ -632,6 +712,7 @@ export async function buildFallbackList(meta: Meta): Promise<
             meta.internalOptions.teamFlags ?? null,
             {
               team_id: meta.internalOptions.teamId ?? null,
+              org_id: meta.internalOptions.orgId ?? null,
               origin: null,
             },
           )
@@ -639,10 +720,9 @@ export async function buildFallbackList(meta: Meta): Promise<
           return [];
         }
       } catch (error) {
-        meta.logger.warn(
-          "Exchange blocklist re-check failed; failing closed",
-          { error },
-        );
+        meta.logger.warn("Exchange blocklist re-check failed; failing closed", {
+          error,
+        });
         return [];
       }
     }
@@ -676,6 +756,23 @@ export async function buildFallbackList(meta: Meta): Promise<
     _engines.push(...indexEngines);
     meta.internalOptions.forceEngine = indexEngines;
   } else if (meta.internalOptions.agentIndexOnly) {
+    // Index documents carry no physical-page or typed-block payloads, and
+    // their markdown never carries page markers, so an index-only request
+    // that demands them can only be answered wrong. Fail loud with the
+    // canonical index-only error (maps to a clean 4xx and tells the caller
+    // how to unlock live scraping) instead of silently serving a document
+    // without the capability.
+    if (
+      getPDFPageMarkdown(meta.options.parsers) ||
+      getPDFBlocks(meta.options.parsers) ||
+      getPDFPageMarkers(meta.options.parsers)
+    ) {
+      meta.logger.warn(
+        "agentIndexOnly request demands pageMarkdown/blocks/pageMarkers, which the URL index cannot serve",
+        { parsers: meta.options.parsers },
+      );
+      throw new AgentIndexOnlyError();
+    }
     const indexEngines: Engine[] = useIndex ? ["index", "index;documents"] : [];
     _engines.length = 0;
     _engines.push(...indexEngines);
@@ -688,6 +785,143 @@ export async function buildFallbackList(meta: Meta): Promise<
     const indexDocumentsIndex = _engines.indexOf("index;documents");
     if (indexDocumentsIndex !== -1) {
       _engines.splice(indexDocumentsIndex, 1);
+    }
+  }
+
+  // File-fetch routing: when fire-engine is available, PDF and document
+  // downloads always go through the browser engines, which fetch the file
+  // through fire-engine's proxy infrastructure and hand it back to this
+  // waterfall via AddFeatureError (specialtyScrapeCheck) — the same route
+  // the PDFAntibotError/PDFFetchProxyError and document-equivalent
+  // recoveries have always taken, just taken immediately instead of after
+  // a wasted direct download. The file engines (pdf, document, image)
+  // then run as pure parsers on the prefetched file, and their own direct
+  // undici downloads stay reachable only in self-hosted deployments (no
+  // fire-engine) or under an explicit forceEngine pin.
+  //
+  // This is a bespoke list rather than a flag tweak because the pdf and
+  // document flags (priority 100) exist precisely to keep every
+  // non-file-capable engine out of the waterfall via the supportScore
+  // threshold — the browser engines declare pdf/document: false, so they
+  // can never qualify while the flag is set. Clearing the flag instead
+  // would let fastMode/atsv requests admit tlsclient, which cannot hand
+  // off files at all (the file download handler is chrome-cdp only) and
+  // would burn prefetch round trips on null handoffs.
+  const fileFetchFlag: FeatureFlag | null = meta.featureFlags.has("document")
+    ? "document"
+    : meta.featureFlags.has("pdf")
+      ? "pdf"
+      : meta.featureFlags.has("image")
+        ? "image"
+        : null;
+
+  // A handoff of any file type ends the fetch leg: a .pdf URL can
+  // legitimately serve a docx (and vice versa), so either prefetch being
+  // set means the file is already in hand and the normal waterfall below
+  // routes it to the right parser.
+  if (
+    useFireEngine &&
+    fileFetchFlag !== null &&
+    meta.pdfPrefetch === undefined &&
+    meta.documentPrefetch === undefined &&
+    meta.imagePrefetch === undefined &&
+    // Lockdown and agentIndexOnly pin forceEngine above, so their
+    // index-only semantics win; every other explicit pin is the escape
+    // hatch that keeps the file engines' direct downloads working.
+    meta.internalOptions.forceEngine === undefined
+  ) {
+    // Branding needs a rendered HTML page; preserve the historical
+    // clean error (this early return would otherwise skip the check at
+    // the bottom of this function).
+    if (meta.featureFlags.has("branding")) {
+      throw new BrandingNotSupportedError(
+        fileFetchFlag === "pdf"
+          ? "Branding extraction is only supported for HTML web pages. PDFs are not supported."
+          : fileFetchFlag === "image"
+            ? "Branding extraction is only supported for HTML web pages. Images are not supported."
+            : "Branding extraction is only supported for HTML web pages. Documents (docx, xlsx, etc.) are not supported.",
+      );
+    }
+
+    const browserEngines: Engine[] = meta.featureFlags.has("stealthProxy")
+      ? // Explicit stealth: only the stealth variants can honor it. The
+        // auto path escalates here on its own via AddFeatureError(["stealthProxy"]).
+        [
+          "fire-engine;chrome-cdp;stealth",
+          "fire-engine(retry);chrome-cdp;stealth",
+        ]
+      : [
+          "fire-engine;chrome-cdp",
+          "fire-engine(retry);chrome-cdp",
+          "fire-engine;chrome-cdp;stealth",
+          "fire-engine(retry);chrome-cdp;stealth",
+        ];
+
+    const selectedEngines = [
+      // Cache first: an index;documents hit serves the file without any
+      // fetch at all. (Plain "index" is the same lookup, but the pdf
+      // flag has always threshold-filtered it out for file URLs.)
+      ...(shouldUseIndex(meta) ? (["index;documents"] as Engine[]) : []),
+      ...browserEngines,
+    ].map(engine => {
+      const supportedFlags = new Set([
+        ...Object.entries(engineOptions[engine].features)
+          .filter(
+            ([k, v]) => meta.featureFlags.has(k as FeatureFlag) && v === true,
+          )
+          .map(([k, _]) => k),
+      ]);
+      const unsupportedFeatures = new Set([...meta.featureFlags]);
+      for (const flag of meta.featureFlags) {
+        if (supportedFlags.has(flag)) {
+          unsupportedFeatures.delete(flag);
+        }
+      }
+      return { engine, unsupportedFeatures };
+    });
+
+    meta.logger.info("Selected engines", {
+      selectedEngines,
+      fileFetchRoute: fileFetchFlag,
+    });
+
+    return selectedEngines;
+  }
+
+  // When fire-engine is available, drop tlsclient and fetch from the general
+  // waterfall: once chrome-cdp (and its retry) fail, degrading to a plain
+  // HTTP client tends to produce bot-walled or otherwise low-quality content,
+  // so we'd rather fail the scrape outright. They stay reachable when the
+  // request asks for them: fastMode/atsv set feature flags that chrome-cdp
+  // can't satisfy (and are handled here), audio/video keep tlsclient as the
+  // avgrab fallback behind chrome-cdp, and forceEngine bypasses _engines
+  // entirely, reading straight from internalOptions.
+  if (
+    useFireEngine &&
+    !meta.featureFlags.has("useFastMode") &&
+    !meta.featureFlags.has("atsv") &&
+    !meta.featureFlags.has("audio") &&
+    !meta.featureFlags.has("video")
+  ) {
+    // The sort-time quality boost below cannot resurrect an engine that was
+    // spliced out here, so dropping tlsclient unconditionally would silently
+    // neuter the engpicker opt-in on exactly the TlsClientOk domains where
+    // engpicker measured its output to match chrome-cdp's. Keep both variants
+    // when that verdict is in hand; regular scrapes never set the flag, so they
+    // drop tlsclient as intended.
+    const enginesToDrop: Engine[] = ["fetch"];
+    if (!shouldPrioritizeTlsClient) {
+      enginesToDrop.push(
+        "fire-engine;tlsclient",
+        "fire-engine;tlsclient;stealth",
+      );
+    }
+
+    for (const engine of enginesToDrop) {
+      const index = _engines.indexOf(engine);
+      if (index !== -1) {
+        _engines.splice(index, 1);
+      }
     }
   }
 

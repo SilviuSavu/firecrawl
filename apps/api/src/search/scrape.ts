@@ -31,6 +31,7 @@ interface ScrapeItem {
 
 interface ScrapeSearchOptions {
   teamId: string;
+  orgId?: string | null;
   origin: string;
   timeout: number;
   scrapeOptions: ScrapeOptions;
@@ -42,6 +43,7 @@ interface ScrapeSearchOptions {
   agentIndexOnly?: boolean;
   keylessReserved?: boolean;
   threatProtectionPolicy?: ThreatProtectionPolicy | null;
+  safeModeBypassed?: boolean;
 }
 
 async function scrapeSearchResultDirect(
@@ -79,11 +81,13 @@ async function scrapeSearchResultDirect(
         },
         internalOptions: {
           teamId: options.teamId,
+          orgId: options.orgId ?? null,
           bypassBilling: options.bypassBilling ?? true,
           zeroDataRetention,
           teamFlags: flags,
           agentIndexOnly: options.agentIndexOnly ?? false,
           threatProtection: options.threatProtectionPolicy ?? undefined,
+          safeModeBypassed: options.safeModeBypassed === true,
         },
         skipNuq: true,
         origin: options.origin,
@@ -147,7 +151,11 @@ async function scrapeSearchResultDirect(
 export function getItemsToScrape(
   searchResponse: SearchV2Response,
   flags: TeamFlags,
-  context?: { team_id?: string | null; origin?: string | null },
+  context?: {
+    team_id?: string | null;
+    org_id?: string | null;
+    origin?: string | null;
+  },
 ): ScrapeItem[] {
   const items: ScrapeItem[] = [];
 
@@ -214,6 +222,7 @@ export async function scrapeSearchResults(
 
   const jobPriority = await getJobPriority({
     team_id: options.teamId,
+    org_id: options.orgId ?? null,
     basePriority: 10,
   });
 

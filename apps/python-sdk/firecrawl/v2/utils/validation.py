@@ -388,6 +388,8 @@ def _validate_json_format(format_obj: Any) -> Dict[str, Any]:
     
     schema = format_obj.get('schema')
     normalized = dict(format_obj)
+    if "check_prompt_injection" in normalized:
+        normalized["checkPromptInjection"] = normalized.pop("check_prompt_injection")
     if schema is not None:
         normalized_schema = _normalize_schema(schema)
         if normalized_schema is not None:
@@ -566,8 +568,10 @@ def prepare_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Dict[st
         "block_ads": "blockAds",
         "store_in_cache": "storeInCache",
         "max_age": "maxAge",
+        "min_age": "minAge",
         "redact_pii": "redactPII",
         "threat_protection": "threatProtection",
+        "audit_metadata": "auditMetadata",
     }
     
     
@@ -788,12 +792,21 @@ def prepare_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Dict[st
                         parser_data = dict(parser)
                         if "max_pages" in parser_data:
                             parser_data["maxPages"] = parser_data.pop("max_pages")
+                        # Deprecated alias from the pre-rename pageMarkdown option.
+                        if "page_markdown" in parser_data:
+                            parser_data.setdefault("pages", parser_data.pop("page_markdown"))
+                        if "pageMarkdown" in parser_data:
+                            parser_data.setdefault("pages", parser_data.pop("pageMarkdown"))
+                        if "page_markers" in parser_data:
+                            parser_data["pageMarkers"] = parser_data.pop("page_markers")
                         converted_parsers.append(parser_data)
                     else:
                         parser_data = parser.model_dump(exclude_none=True)
                         
                         if "max_pages" in parser_data:
                             parser_data["maxPages"] = parser_data.pop("max_pages")
+                        if "page_markers" in parser_data:
+                            parser_data["pageMarkers"] = parser_data.pop("page_markers")
                         converted_parsers.append(parser_data)
                 scrape_data["parsers"] = converted_parsers
             elif key == "location":
@@ -801,6 +814,10 @@ def prepare_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Dict[st
                     scrape_data["location"] = value
                 else:
                     scrape_data["location"] = value.model_dump(exclude_none=True)
+            elif key == "domain_tools":
+                # Only ever sent when explicitly enabled; never emit `false`.
+                if value:
+                    scrape_data["domainTools"] = True
             elif key == "profile":
                 if isinstance(value, dict):
                     profile_data = {
@@ -817,4 +834,4 @@ def prepare_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Dict[st
                 
                 scrape_data[key] = value
     
-    return scrape_data  
+    return scrape_data

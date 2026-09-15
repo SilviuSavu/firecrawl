@@ -26,6 +26,7 @@ import { logger as _logger } from "../../lib/logger";
 import { UNSUPPORTED_SITE_MESSAGE } from "../../lib/strings";
 import { isUrlBlocked } from "../../scraper/WebScraper/utils/blocklist";
 import { checkPermissions } from "../../lib/permissions";
+import { resolveSafeMode } from "../../lib/safe-mode";
 import {
   actionTypesOf,
   checkKeyFormatRestriction,
@@ -36,6 +37,7 @@ import {
   resolveNewGroupBackend,
 } from "../../services/worker/nuq-router";
 import { logRequest } from "../../services/logging/log_job";
+import { externalRequestId } from "../../lib/external-request-id";
 import type { BillingMetadata } from "../../services/billing/types";
 import { getScrapeZDR } from "../../lib/zdr-helpers";
 import {
@@ -43,8 +45,11 @@ import {
   resolveThreatProtection,
 } from "../../lib/threat-protection/request";
 import { UnsafeDomainBlockedError } from "../../lib/threat-protection/error";
+import { isAgentInteropSecretValid } from "../../lib/agent-interop";
 import { calculateThreatScanCredits } from "../../lib/scrape-billing";
 import { billTeam } from "../../services/billing/credit_billing";
+import { emitRejectedScrapeActivityEvents } from "../../lib/siem-logging";
+import { UnsupportedSiteError } from "../../lib/error";
 
 export async function batchScrapeController(
   req: RequestWithAuth<{}, BatchScrapeResponse, BatchScrapeRequest>,
@@ -57,11 +62,23 @@ export async function batchScrapeController(
     req.body = batchScrapeRequestSchema.parse(req.body);
   }
 
+  // Batch has many URLs; per-URL allowlist is applied at the scrapeURL backstop.
+  // Resolve org-level here only for the bypass/enablement decision.
+  const safeMode = resolveSafeMode(req.acuc?.flags, req.body.safeMode);
+  if (safeMode.error) {
+    return res.status(403).json({
+      success: false,
+      code: safeMode.code,
+      error: safeMode.error,
+    });
+  }
+
   const threatProtection = await resolveThreatProtection({
     teamId: req.auth.team_id,
     orgId: req.acuc?.org_id ?? null,
     flags: req.acuc?.flags ?? null,
     override: req.body.threatProtection,
+    force: safeMode.safeMode?.domainControls === true,
   });
   if (threatProtection.error) {
     return res.status(403).json({
@@ -72,10 +89,12 @@ export async function batchScrapeController(
 
   const permissions = checkPermissions(req.body, req.acuc?.flags, {
     threatProtectionOrgConfig: threatProtection.orgConfig,
+    safeMode: safeMode.safeMode ?? null,
   });
   if (permissions.error) {
     return res.status(403).json({
       success: false,
+      code: permissions.code,
       error: permissions.error,
     });
   }
@@ -93,14 +112,16 @@ export async function batchScrapeController(
     });
   }
 
+  // Safe Mode lockdown is cache-only, which implies zero data retention.
   const zeroDataRetention =
     getScrapeZDR(req.acuc?.flags) === "forced" ||
-    (req.body.zeroDataRetention ?? false);
+    (req.body.zeroDataRetention ?? false) ||
+    (safeMode.safeMode?.lockdown ?? false);
 
   if (
     req.body.__agentInterop &&
     config.AGENT_INTEROP_SECRET &&
-    req.body.__agentInterop.auth !== config.AGENT_INTEROP_SECRET
+    !isAgentInteropSecretValid(req.body.__agentInterop.auth)
   ) {
     return res.status(403).json({
       success: false,
@@ -129,6 +150,7 @@ export async function batchScrapeController(
   let urls: string[] = req.body.urls;
   let unnormalizedURLs = preNormalizedBody.urls;
   let invalidURLs: string[] | undefined = undefined;
+  const locallyBlockedURLs: string[] = [];
 
   if (req.body.ignoreInvalidURLs) {
     invalidURLs = [];
@@ -142,6 +164,7 @@ export async function batchScrapeController(
         if (
           !isUrlBlocked(nu, req.acuc?.flags ?? null, {
             team_id: req.auth.team_id,
+            org_id: req.acuc?.org_id ?? null,
             origin: req.body.origin ?? null,
           })
         ) {
@@ -149,20 +172,39 @@ export async function batchScrapeController(
           unnormalizedURLs.push(u);
         } else {
           invalidURLs.push(u);
+          locallyBlockedURLs.push(nu);
         }
       } catch (_) {
         invalidURLs.push(u);
       }
     }
   } else {
-    if (
-      req.body.urls?.some((url: string) =>
+    const blockedURLs =
+      req.body.urls?.filter((url: string) =>
         isUrlBlocked(url, req.acuc?.flags ?? null, {
           team_id: req.auth.team_id,
+          org_id: req.acuc?.org_id ?? null,
           origin: req.body.origin ?? null,
         }),
-      )
-    ) {
+      ) ?? [];
+    if (blockedURLs.length > 0) {
+      locallyBlockedURLs.push(...blockedURLs);
+      emitRejectedScrapeActivityEvents(
+        locallyBlockedURLs.map(url => ({
+          scrapeId: uuidv7(),
+          requestId: req.body.__agentInterop?.requestId ?? id,
+          endpoint: req.body.__agentInterop ? "agent" : "batch_scrape",
+          teamId: req.auth.team_id,
+          apiKeyId: req.acuc?.api_key_id ?? null,
+          auditMetadata: req.body.auditMetadata,
+          url,
+          error: new UnsupportedSiteError(),
+          origin: req.body.origin ?? "api",
+          integration: req.body.integration,
+          zeroDataRetention,
+        })),
+      );
+      locallyBlockedURLs.length = 0;
       if (!res.headersSent) {
         return res.status(403).json({
           success: false,
@@ -171,6 +213,22 @@ export async function batchScrapeController(
       }
     }
   }
+
+  emitRejectedScrapeActivityEvents(
+    locallyBlockedURLs.map(url => ({
+      scrapeId: uuidv7(),
+      requestId: req.body.__agentInterop?.requestId ?? id,
+      endpoint: req.body.__agentInterop ? "agent" : "batch_scrape",
+      teamId: req.auth.team_id,
+      apiKeyId: req.acuc?.api_key_id ?? null,
+      auditMetadata: req.body.auditMetadata,
+      url,
+      error: new UnsupportedSiteError(),
+      origin: req.body.origin ?? "api",
+      integration: req.body.integration,
+      zeroDataRetention,
+    })),
+  );
 
   // Threat protection: reject/report blocked URLs at enqueue time so they
   // never consume scrape slots. Mirrors the isUrlBlocked handling above:
@@ -201,15 +259,41 @@ export async function batchScrapeController(
       ) {
         billTeam(
           req.auth.team_id,
+          req.acuc?.org_id ?? null,
           threatScanCredits,
           req.acuc?.api_key_id ?? null,
-          billing,
+          {
+            ...billing,
+            // Appends reuse the batch id but each append's threat scans are a
+            // fresh charge — a shared key would underbill them. Appends stay
+            // keyless (per-request UUID in firebill).
+            ...(req.body.appendToId ? {} : { chargeId: `${id}:threat` }),
+          },
         ).catch(error => {
           logger.error(
             `Failed to bill team ${req.auth.team_id} for ${threatScanCredits} threat scan credit(s): ${error}`,
           );
         });
       }
+      emitRejectedScrapeActivityEvents(
+        blocked.map(blockedUrl => ({
+          scrapeId: uuidv7(),
+          requestId: req.body.__agentInterop?.requestId ?? id,
+          endpoint: req.body.__agentInterop ? "agent" : "batch_scrape",
+          teamId: req.auth.team_id,
+          apiKeyId: req.acuc?.api_key_id ?? null,
+          auditMetadata: req.body.auditMetadata,
+          url: blockedUrl.url,
+          error: new UnsafeDomainBlockedError(
+            blockedUrl.url,
+            blockedUrl.decision,
+          ),
+          threatDecisions: [blockedUrl.decision],
+          origin: req.body.origin ?? "api",
+          integration: req.body.integration,
+          zeroDataRetention,
+        })),
+      );
       if (req.body.ignoreInvalidURLs) {
         const blockedSet = new Set(blocked.map(x => x.url));
         const keptUnnormalized: string[] = [];
@@ -254,6 +338,7 @@ export async function batchScrapeController(
       id,
       kind: "batch_scrape",
       api_version: "v2",
+      external_request_id: externalRequestId(req),
       team_id: req.auth.team_id,
       origin: req.body.origin ?? "api",
       integration: req.body.integration,
@@ -271,6 +356,7 @@ export async function batchScrapeController(
         internalOptions: {
           disableSmartWaitCache: true,
           teamId: req.auth.team_id,
+          orgId: req.acuc?.org_id ?? null,
           saveScrapeResultToGCS: config.GCS_FIRE_ENGINE_BUCKET_NAME
             ? true
             : false,
@@ -278,6 +364,10 @@ export async function batchScrapeController(
           bypassBilling: !(req.body.__agentInterop?.shouldBill ?? true),
           agentIndexOnly: (req as any).agentIndexOnly ?? false,
           threatProtection: threatProtection.policy ?? undefined,
+          // Safe Mode rides the batch payload so each URL resolves it per-URL
+          // at the scrapeURL backstop.
+          teamFlags: req.acuc?.flags ?? undefined,
+          safeModeBypassed: safeMode.bypassed === true,
         }, // NOTE: smart wait disabled for batch scrapes to ensure contentful scrape, speed does not matter
         team_id: req.auth.team_id,
         createdAt: Date.now(),
@@ -295,6 +385,12 @@ export async function batchScrapeController(
         error: "Job not found",
       });
     }
+    // Refresh Safe Mode + threat-protection context so appended jobs enforce
+    // the team's current policy, not whatever was stored when the batch was
+    // first created.
+    sc.internalOptions.teamFlags = req.acuc?.flags ?? undefined;
+    sc.internalOptions.safeModeBypassed = safeMode.bypassed === true;
+    sc.internalOptions.threatProtection = threatProtection.policy ?? undefined;
   }
 
   if (!req.body.appendToId) {
@@ -321,6 +417,7 @@ export async function batchScrapeController(
     // set base to 21
     jobPriority = await getJobPriority({
       team_id: req.auth.team_id,
+      org_id: req.acuc?.org_id ?? null,
       basePriority: 21,
     });
   }

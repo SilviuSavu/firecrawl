@@ -18,6 +18,7 @@ import { _addScrapeJobToBullMQ } from "../../services/queue-jobs";
 import { logger as _logger } from "../../lib/logger";
 import { fromV1ScrapeOptions } from "../v2/types";
 import { checkPermissions } from "../../lib/permissions";
+import { resolveSafeMode } from "../../lib/safe-mode";
 import {
   actionTypesOf,
   checkKeyFormatRestriction,
@@ -28,12 +29,15 @@ import {
   resolveNewGroupBackend,
 } from "../../services/worker/nuq-router";
 import { logRequest } from "../../services/logging/log_job";
+import { externalRequestId } from "../../lib/external-request-id";
 import { getScrapeZDR } from "../../lib/zdr-helpers";
 import { resolveThreatProtection } from "../../lib/threat-protection/request";
 import { checkUrl } from "../../lib/threat-protection";
 import { UnsafeDomainBlockedError } from "../../lib/threat-protection/error";
 import { calculateThreatScanCredits } from "../../lib/scrape-billing";
 import { billTeam } from "../../services/billing/credit_billing";
+import { getEffectiveConcurrencyLimit } from "../../lib/concurrency-limit";
+import { emitRejectedScrapeActivityEvent } from "../../lib/siem-logging";
 
 export async function crawlController(
   req: RequestWithAuth<{}, CrawlResponse, CrawlRequest>,
@@ -41,12 +45,33 @@ export async function crawlController(
 ) {
   const preNormalizedBody = req.body;
   req.body = crawlRequestSchema.parse(req.body);
+  const id = uuidv7();
+
+  const safeMode = resolveSafeMode(
+    req.acuc?.flags,
+    req.body.scrapeOptions?.safeMode,
+    req.body.url,
+  );
+  if (safeMode.error) {
+    return res.status(403).json({
+      success: false,
+      code: safeMode.code,
+      error: safeMode.error,
+    } as any);
+  }
+
+  // Safe Mode lockdown is cache-only, which implies zero data retention.
+  const zeroDataRetention =
+    getScrapeZDR(req.acuc?.flags) === "forced" ||
+    req.body.zeroDataRetention ||
+    (safeMode.safeMode?.lockdown ?? false);
 
   const threatProtection = await resolveThreatProtection({
     teamId: req.auth.team_id,
     orgId: req.acuc?.org_id ?? null,
     flags: req.acuc?.flags ?? null,
     override: req.body.scrapeOptions?.threatProtection,
+    force: safeMode.safeMode?.domainControls === true,
   });
   if (threatProtection.error) {
     return res.status(403).json({
@@ -55,14 +80,27 @@ export async function crawlController(
     });
   }
 
+  // Scrape params live under scrapeOptions; checkPermissions reads them
+  // top-level, so spread scrapeOptions while keeping the top-level fields it
+  // also reads (zeroDataRetention, crawlerOptions.ignoreRobotsTxt) and the
+  // nested scrapeOptions (location / threatProtection).
   const permissions = checkPermissions(
-    { ...req.body, crawlerOptions: req.body },
+    {
+      ...req.body.scrapeOptions,
+      zeroDataRetention: req.body.zeroDataRetention,
+      crawlerOptions: req.body,
+      scrapeOptions: req.body.scrapeOptions,
+    },
     req.acuc?.flags,
-    { threatProtectionOrgConfig: threatProtection.orgConfig },
+    {
+      threatProtectionOrgConfig: threatProtection.orgConfig,
+      safeMode: safeMode.safeMode ?? null,
+    },
   );
   if (permissions.error) {
     return res.status(403).json({
       success: false,
+      code: permissions.code,
       error: permissions.error,
     });
   }
@@ -80,8 +118,12 @@ export async function crawlController(
       if (threatScanCredits > 0) {
         billTeam(
           req.auth.team_id,
+          req.acuc?.org_id ?? null,
           threatScanCredits,
           req.acuc?.api_key_id ?? null,
+          // No chargeId: a fresh crawl id is minted per request and the
+          // rejected crawl is never persisted or queued, so there is no
+          // stable per-charge identity that could dedupe a retry.
           { endpoint: "crawl" },
         ).catch(error => {
           _logger.error(
@@ -90,6 +132,20 @@ export async function crawlController(
         });
       }
       const error = new UnsafeDomainBlockedError(req.body.url, decision);
+      emitRejectedScrapeActivityEvent({
+        scrapeId: uuidv7(),
+        requestId: id,
+        endpoint: "crawl",
+        teamId: req.auth.team_id,
+        apiKeyId: req.acuc?.api_key_id ?? null,
+        auditMetadata: req.body.scrapeOptions?.auditMetadata,
+        url: req.body.url,
+        error,
+        threatDecisions: [decision],
+        origin: req.body.origin ?? "api",
+        integration: req.body.integration,
+        zeroDataRetention: zeroDataRetention ?? false,
+      });
       return res.status(403).json({
         success: false,
         code: error.code,
@@ -111,10 +167,6 @@ export async function crawlController(
     });
   }
 
-  const zeroDataRetention =
-    getScrapeZDR(req.acuc?.flags) === "forced" || req.body.zeroDataRetention;
-
-  const id = uuidv7();
   const logger = _logger.child({
     crawlId: id,
     module: "api/v1",
@@ -133,6 +185,7 @@ export async function crawlController(
     id,
     kind: "crawl",
     api_version: "v1",
+    external_request_id: externalRequestId(req),
     team_id: req.auth.team_id,
     origin: req.body.origin ?? "api",
     integration: req.body.integration,
@@ -163,6 +216,14 @@ export async function crawlController(
     bodyScrapeOptions.timeout,
     req.auth.team_id,
   );
+  // v1 prefaults maxAge (1 day), which would shadow the lockdown default the
+  // scrape backstop applies — keep only a maxAge the request actually sent.
+  if (
+    safeMode.safeMode?.lockdown &&
+    preNormalizedBody.scrapeOptions?.maxAge === undefined
+  ) {
+    scrapeOptions.maxAge = undefined;
+  }
 
   // TODO: @rafa, is this right? copied from v0
   if (Array.isArray(crawlerOptions.includePaths)) {
@@ -201,18 +262,26 @@ export async function crawlController(
       ...internalOptions,
       disableSmartWaitCache: true,
       teamId: req.auth.team_id,
+      orgId: req.acuc?.org_id ?? null,
       saveScrapeResultToGCS: config.GCS_FIRE_ENGINE_BUCKET_NAME ? true : false,
       zeroDataRetention,
       agentIndexOnly: (req as any).agentIndexOnly ?? false,
       threatProtection: threatProtection.policy ?? undefined,
+      // Safe Mode resolves per-URL at the scrapeURL backstop from these flags.
+      teamFlags: req.acuc?.flags ?? undefined,
+      safeModeBypassed: safeMode.bypassed === true,
     }, // NOTE: smart wait disabled for crawls to ensure contentful scrape, speed does not matter
     team_id: req.auth.team_id,
     createdAt: Date.now(),
     maxConcurrency:
       req.body.maxConcurrency !== undefined
-        ? req.acuc?.concurrency !== undefined
-          ? Math.min(req.body.maxConcurrency, req.acuc.concurrency)
-          : req.body.maxConcurrency
+        ? Math.min(
+            req.body.maxConcurrency,
+            await getEffectiveConcurrencyLimit(
+              req.auth.team_id,
+              req.acuc?.org_id ?? null,
+            ),
+          )
         : undefined,
     zeroDataRetention,
     v1: true,

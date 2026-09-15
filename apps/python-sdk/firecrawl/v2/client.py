@@ -14,8 +14,13 @@ from .types import (
     Document,
     SearchRequest,
     SearchData,
+    DeveloperSearchResponse,
+    DeveloperSearchType,
     SourceOption,
     CategoryOption,
+    FindToolsData,
+    AlexandriaCall,
+    AlexandriaScrapeData,
     CrawlRequest,
     CrawlResponse,
     CrawlJob,
@@ -24,6 +29,7 @@ from .types import (
     CrawlParamsData,
     WebhookConfig,
     AgentWebhookConfig,
+    AgentExchangeOptions,
     MonitorWebhookConfig,
     CrawlErrorsResponse,
     ActiveCrawlsResponse,
@@ -42,6 +48,7 @@ from .types import (
     Location,
     PaginationConfig,
     AgentOptions,
+    AuditMetadata,
     ThreatProtectionOptions,
     Monitor,
     MonitorCheck,
@@ -59,6 +66,7 @@ from .methods import parse as parse_module
 from .methods import crawl as crawl_module  
 from .methods import batch as batch_module
 from .methods import search as search_module
+from .methods import developer as developer_module
 from .methods import map as map_module
 from .methods import batch as batch_methods
 from .methods import usage as usage_methods
@@ -67,6 +75,14 @@ from .methods import agent as agent_module
 from .methods import browser as browser_module
 from .methods import monitor as monitor_module
 from .methods import research as research_module
+from .methods.research_docs import (
+    CLIENT_INSPECT_PAPER_DOC,
+    CLIENT_READ_PAPER_DOC,
+    CLIENT_RELATED_PAPERS_DOC,
+    CLIENT_SEARCH_GITHUB_DOC,
+    CLIENT_SEARCH_PAPERS_DOC,
+    doc,
+)
 from .watcher import Watcher
 
 
@@ -78,7 +94,7 @@ _SCRAPE_OPTION_KEYS = frozenset({
     "parsers", "actions", "location", "skip_tls_verification",
     "remove_base64_images", "fast_mode", "use_mock", "block_ads",
     "proxy", "max_age", "store_in_cache", "lockdown", "threat_protection",
-    "profile",
+    "profile", "audit_metadata",
 })
 
 
@@ -137,8 +153,11 @@ class FirecrawlClient:
     
     def scrape(
         self,
-        url: str,
+        url: Optional[str] = None,
         *,
+        auto_resume: Optional[bool] = None,
+        alexandria: Optional[Union[AlexandriaCall, Dict[str, Any], List[Union[AlexandriaCall, Dict[str, Any]]]]] = None,
+        request_id: Optional[str] = None,
         formats: Optional[List['FormatOption']] = None,
         headers: Optional[Dict[str, str]] = None,
         include_tags: Optional[List[str]] = None,
@@ -161,8 +180,10 @@ class FirecrawlClient:
         lockdown: Optional[bool] = None,
         threat_protection: Optional[ThreatProtectionOptions] = None,
         profile: Optional[Dict[str, Any]] = None,
+        audit_metadata: Optional[AuditMetadata] = None,
         integration: Optional[str] = None,
-    ) -> Document:
+        domain_tools: Optional[bool] = None,
+    ) -> Union[Document, AlexandriaScrapeData]:
         """
         Scrape a single URL and return the document.
         Args:
@@ -189,6 +210,7 @@ class FirecrawlClient:
             lockdown: Serve only previously cached results; never make outbound requests. Returns 404 SCRAPE_LOCKDOWN_CACHE_MISS on cache miss.
             threat_protection: Enterprise per-request override of the team's threat protection policy
             profile: Browser profile for persistent state (e.g. {"name": "my-profile", "saveChanges": True})
+            audit_metadata: Metadata to include in SIEM logging events
         Returns:
             Document
         """
@@ -216,23 +238,80 @@ class FirecrawlClient:
                 lockdown=lockdown,
                 threat_protection=threat_protection,
                 profile=profile,
+                audit_metadata=audit_metadata,
                 integration=integration,
+                domain_tools=domain_tools,
             ).items() if v is not None}
-        ) if any(v is not None for v in [formats, headers, include_tags, exclude_tags, only_main_content, timeout, wait_for, mobile, parsers, actions, location, skip_tls_verification, remove_base64_images, fast_mode, use_mock, block_ads, proxy, max_age, store_in_cache, lockdown, threat_protection, profile, integration]) else None
-        return scrape_module.scrape(self.http_client, url, options)
+        ) if any(v is not None for v in [formats, headers, include_tags, exclude_tags, only_main_content, timeout, wait_for, mobile, parsers, actions, location, skip_tls_verification, remove_base64_images, fast_mode, use_mock, block_ads, proxy, max_age, store_in_cache, lockdown, threat_protection, profile, audit_metadata, integration, domain_tools]) else None
+        if alexandria is not None:
+            if url is not None or auto_resume is not None or (options and set(options.model_dump(exclude_none=True, exclude_unset=True)) - {"timeout", "integration"}):
+                raise ValueError("alexandria cannot be combined with URL scrape options")
+            return self.scrape_alexandria(alexandria, timeout=timeout, integration=integration, request_id=request_id)
+        if request_id is not None:
+            raise ValueError("request_id requires alexandria")
+        return scrape_module.scrape(self.http_client, url, options, auto_resume=auto_resume)
 
+    def scrape_alexandria(
+        self,
+        calls: Union[AlexandriaCall, Dict[str, Any], List[Union[AlexandriaCall, Dict[str, Any]]]],
+        *,
+        timeout: Optional[int] = None,
+        integration: Optional[str] = None,
+        request_id: Optional[str] = None,
+    ) -> AlexandriaScrapeData:
+        """
+        Execute up to 10 Alexandria capabilities in one request.
+
+        Args:
+            calls: Alexandria calls, each with provider, capability and optional options
+            timeout: Request timeout in milliseconds
+            integration: Integration tag for the request
+
+        Returns:
+            AlexandriaScrapeData with one result (or error) per call and the total credits cost
+        """
+        return scrape_module.scrape_alexandria(
+            self.http_client, calls, timeout=timeout, integration=integration, request_id=request_id
+        )
+
+    def find_tools(self, **options) -> FindToolsData:
+        """Explore providers and contracts without executing discovered tools.
+
+        Filter by urls, providers, categories, groups, or capabilities. Use level
+        (providers/groups/tools), expand, limit, and offset to control disclosure.
+        Follow a returned next request with scrape(alexandria=next).
+        """
+        result = self.scrape_alexandria({"provider": "firecrawl", "capability": "find-tools", "options": options})
+        item = result.alexandria[0]
+        if item.error:
+            from .utils.error_handler import FirecrawlError
+            raise FirecrawlError(
+                item.error.message,
+                item.error.status,
+                request_id=result.request_id,
+                code=item.error.code,
+                charge_id=item.error.charge_id,
+            )
+        return FindToolsData(**item.data)
+
+    # Research paper index (/v2/search/research)
+    @doc(CLIENT_SEARCH_PAPERS_DOC)
     def search_papers(self, query: str, **kwargs):
         return research_module.search_papers(self.http_client, query, **kwargs)
 
+    @doc(CLIENT_INSPECT_PAPER_DOC)
     def inspect_paper(self, paper_id: str):
         return research_module.inspect_paper(self.http_client, paper_id)
 
+    @doc(CLIENT_READ_PAPER_DOC)
     def read_paper(self, paper_id: str, query: str, **kwargs):
         return research_module.read_paper(self.http_client, paper_id, query, **kwargs)
 
+    @doc(CLIENT_RELATED_PAPERS_DOC)
     def related_papers(self, paper_id: str, intent: str, **kwargs):
         return research_module.related_papers(self.http_client, paper_id, intent, **kwargs)
 
+    @doc(CLIENT_SEARCH_GITHUB_DOC)
     def search_github(self, query: str, **kwargs):
         return research_module.search_github(self.http_client, query, **kwargs)
 
@@ -387,12 +466,14 @@ class FirecrawlClient:
         query: str,
         *,
         sources: Optional[List[SourceOption]] = None,
+        domain_tools: Optional[bool] = None,
         categories: Optional[List[CategoryOption]] = None,
         include_domains: Optional[List[str]] = None,
         exclude_domains: Optional[List[str]] = None,
         limit: Optional[int] = None,
         tbs: Optional[str] = None,
         location: Optional[str] = None,
+        country: Optional[str] = None,
         ignore_invalid_urls: Optional[bool] = None,
         timeout: Optional[int] = None,
         highlights: Optional[bool] = None,
@@ -409,6 +490,7 @@ class FirecrawlClient:
             limit: Maximum number of results to return (default: 5)
             tbs: Time-based search filter
             location: Location string for search
+            country: Country code that geo-targets the search results
             timeout: Request timeout in milliseconds (default: 300000)
             highlights: Generate query-relevant highlights for search results
                 (default: true)
@@ -425,12 +507,14 @@ class FirecrawlClient:
         request = SearchRequest(
             query=query,
             sources=sources,
+            domain_tools=domain_tools,
             categories=categories,
             include_domains=include_domains,
             exclude_domains=exclude_domains,
             limit=limit,
             tbs=tbs,
             location=location,
+            country=country,
             ignore_invalid_urls=ignore_invalid_urls,
             timeout=timeout,
             highlights=highlights,
@@ -441,6 +525,43 @@ class FirecrawlClient:
         )
 
         return search_module.search(self.http_client, request)
+
+    def developer_search(
+        self,
+        query: str,
+        *,
+        k: Optional[int] = None,
+        passages: Optional[int] = None,
+        types: Optional[List[DeveloperSearchType]] = None,
+        repos: Optional[List[str]] = None,
+        sources: Optional[List[str]] = None,
+        language: Optional[str] = None,
+        topic: Optional[List[str]] = None,
+        license: Optional[str] = None,
+        min_stars: Optional[int] = None,
+        max_stars: Optional[int] = None,
+        archived: Optional[bool] = None,
+        fork: Optional[bool] = None,
+        skills: Optional[Literal["only"]] = None,
+    ) -> DeveloperSearchResponse:
+        """Search the dedicated developer index with full filters and evidence."""
+        return developer_module.developer_search(
+            self.http_client,
+            query,
+            k=k,
+            passages=passages,
+            types=types,
+            repos=repos,
+            sources=sources,
+            language=language,
+            topic=topic,
+            license=license,
+            min_stars=min_stars,
+            max_stars=max_stars,
+            archived=archived,
+            fork=fork,
+            skills=skills,
+        )
     
     def crawl(
         self,
@@ -483,6 +604,7 @@ class FirecrawlClient:
         lockdown: Optional[bool] = None,
         threat_protection: Optional[ThreatProtectionOptions] = None,
         profile: Optional[Dict[str, Any]] = None,
+        audit_metadata: Optional[AuditMetadata] = None,
         regex_on_full_url: bool = False,
         deduplicate_similar_urls: bool = True,
         zero_data_retention: bool = False,
@@ -533,6 +655,7 @@ class FirecrawlClient:
             lockdown: Serve only cached results (convenience kwarg)
             threat_protection: Enterprise threat protection override (convenience kwarg)
             profile: Browser profile (convenience kwarg)
+            audit_metadata: Metadata to include in SIEM logging events
             regex_on_full_url: Apply includePaths/excludePaths regex to the full URL (including query parameters) instead of just the pathname
             deduplicate_similar_urls: Whether to deduplicate similar URLs during crawl (default: True)
             zero_data_retention: Whether to delete data after 24 hours
@@ -558,6 +681,7 @@ class FirecrawlClient:
                 use_mock=use_mock, block_ads=block_ads, proxy=proxy,
                 max_age=max_age, store_in_cache=store_in_cache, lockdown=lockdown,
                 threat_protection=threat_protection, profile=profile,
+                audit_metadata=audit_metadata,
             ).items() if v is not None}
             if scrape_kwargs:
                 scrape_options = ScrapeOptions(**scrape_kwargs)
@@ -642,6 +766,7 @@ class FirecrawlClient:
         lockdown: Optional[bool] = None,
         threat_protection: Optional[ThreatProtectionOptions] = None,
         profile: Optional[Dict[str, Any]] = None,
+        audit_metadata: Optional[AuditMetadata] = None,
         regex_on_full_url: bool = False,
         deduplicate_similar_urls: bool = True,
         zero_data_retention: bool = False,
@@ -690,6 +815,7 @@ class FirecrawlClient:
             lockdown: Serve only cached results (convenience kwarg)
             threat_protection: Enterprise threat protection override (convenience kwarg)
             profile: Browser profile (convenience kwarg)
+            audit_metadata: Metadata to include in SIEM logging events
             regex_on_full_url: Apply includePaths/excludePaths regex to the full URL (including query parameters) instead of just the pathname
             deduplicate_similar_urls: Whether to deduplicate similar URLs during crawl (default: True)
             zero_data_retention: Whether to delete data after 24 hours
@@ -712,6 +838,7 @@ class FirecrawlClient:
                 use_mock=use_mock, block_ads=block_ads, proxy=proxy,
                 max_age=max_age, store_in_cache=store_in_cache, lockdown=lockdown,
                 threat_protection=threat_protection, profile=profile,
+                audit_metadata=audit_metadata,
             ).items() if v is not None}
             if scrape_kwargs:
                 scrape_options = ScrapeOptions(**scrape_kwargs)
@@ -843,6 +970,7 @@ class FirecrawlClient:
         integration: Optional[str] = None,
         location: Optional[Location] = None,
         threat_protection: Optional[ThreatProtectionOptions] = None,
+        audit_metadata: Optional[AuditMetadata] = None,
     ) -> MapData:
         """Map a URL and return discovered links.
 
@@ -856,6 +984,7 @@ class FirecrawlClient:
             timeout: Request timeout in milliseconds
             threat_protection: Enterprise per-request override of the team's
                 threat protection policy
+            audit_metadata: Metadata to include in SIEM logging events
 
         Returns:
             MapData containing the discovered links
@@ -869,8 +998,9 @@ class FirecrawlClient:
             timeout=timeout,
             integration=integration,
             location=location,
-            threat_protection=threat_protection
-        ) if any(v is not None for v in [search, include_subdomains, ignore_query_parameters, limit, sitemap, timeout, integration, location, threat_protection]) else None
+            threat_protection=threat_protection,
+            audit_metadata=audit_metadata,
+        ) if any(v is not None for v in [search, include_subdomains, ignore_query_parameters, limit, sitemap, timeout, integration, location, threat_protection, audit_metadata]) else None
 
         return map_module.map(self.http_client, url, options)
 
@@ -1156,6 +1286,7 @@ class FirecrawlClient:
         store_in_cache: Optional[bool] = None,
         lockdown: Optional[bool] = None,
         threat_protection: Optional[ThreatProtectionOptions] = None,
+        audit_metadata: Optional[AuditMetadata] = None,
         webhook: Optional[Union[str, WebhookConfig]] = None,
         append_to_id: Optional[str] = None,
         ignore_invalid_urls: Optional[bool] = None,
@@ -1189,6 +1320,7 @@ class FirecrawlClient:
             store_in_cache: Whether to store results in cache
             lockdown: Serve only previously cached results; never make outbound requests.
             threat_protection: Enterprise per-request override of the team's threat protection policy
+            audit_metadata: Metadata to include in SIEM logging events
             webhook: Webhook configuration
             append_to_id: Append to an existing batch job
             ignore_invalid_urls: Skip invalid URLs without failing
@@ -1236,6 +1368,7 @@ class FirecrawlClient:
             max_concurrency=max_concurrency,
             zero_data_retention=zero_data_retention,
             integration=integration,
+            audit_metadata=audit_metadata,
             idempotency_key=idempotency_key,
         )
 
@@ -1327,9 +1460,14 @@ class FirecrawlClient:
         integration: Optional[str] = None,
         max_credits: Optional[int] = None,
         strict_constrain_to_urls: Optional[bool] = None,
-        model: Optional[Literal["spark-1-pro", "spark-1-mini"]] = None,
+        model: Optional[Literal["spark-1-pro", "spark-1-mini", "spark-2"]] = None,
+        effort: Optional[Literal["low", "medium", "high"]] = None,
         webhook: Optional[Union[str, AgentWebhookConfig]] = None,
         threat_protection: Optional[ThreatProtectionOptions] = None,
+        audit_metadata: Optional[AuditMetadata] = None,
+        thread_id: Optional[str] = None,
+        mode: Optional[Literal["extract", "chat"]] = None,
+        exchange: Optional[Union[AgentExchangeOptions, Dict[str, Any]]] = None,
     ):
         """Start an agent job (non-blocking).
 
@@ -1339,10 +1477,15 @@ class FirecrawlClient:
             schema: Target JSON schema for the output (dict or Pydantic BaseModel)
             integration: Integration tag/name
             max_credits: Maximum credits to use (optional)
-            model: Model to use for the agent ("spark-1-pro" or "spark-1-mini")
+            model: Model to use for the agent ("spark-1-pro" (default), "spark-1-mini", or "spark-2")
+            effort: Reasoning effort for the agent ("low", "medium", or "high")
             webhook: Webhook URL or configuration for notifications
             threat_protection: Enterprise per-request override of the team's
                 threat protection policy
+            audit_metadata: Metadata to include in SIEM logging events
+            thread_id: Continue an existing thread instead of starting one
+            mode: "extract" (default) or "chat"
+            exchange: Data provider options, forwarded as sent
         Returns:
             Response payload with job id/status (poll with get_agent_status)
         """
@@ -1355,8 +1498,13 @@ class FirecrawlClient:
             max_credits=max_credits,
             strict_constrain_to_urls=strict_constrain_to_urls,
             model=model,
+            effort=effort,
             webhook=webhook,
             threat_protection=threat_protection,
+            audit_metadata=audit_metadata,
+            thread_id=thread_id,
+            mode=mode,
+            exchange=exchange,
         )
 
     def agent(
@@ -1370,9 +1518,14 @@ class FirecrawlClient:
         timeout: Optional[int] = None,
         max_credits: Optional[int] = None,
         strict_constrain_to_urls: Optional[bool] = None,
-        model: Optional[Literal["spark-1-pro", "spark-1-mini"]] = None,
+        model: Optional[Literal["spark-1-pro", "spark-1-mini", "spark-2"]] = None,
+        effort: Optional[Literal["low", "medium", "high"]] = None,
         webhook: Optional[Union[str, AgentWebhookConfig]] = None,
         threat_protection: Optional[ThreatProtectionOptions] = None,
+        audit_metadata: Optional[AuditMetadata] = None,
+        thread_id: Optional[str] = None,
+        mode: Optional[Literal["extract", "chat"]] = None,
+        exchange: Optional[Union[AgentExchangeOptions, Dict[str, Any]]] = None,
     ):
         """Run an agent and wait until completion.
 
@@ -1384,10 +1537,15 @@ class FirecrawlClient:
             poll_interval: Seconds between status checks
             timeout: Maximum seconds to wait (None for no timeout)
             max_credits: Maximum credits to use (optional)
-            model: Model to use for the agent ("spark-1-pro" or "spark-1-mini")
+            model: Model to use for the agent ("spark-1-pro" (default), "spark-1-mini", or "spark-2")
+            effort: Reasoning effort for the agent ("low", "medium", or "high")
             webhook: Webhook URL or configuration for notifications
             threat_protection: Enterprise per-request override of the team's
                 threat protection policy
+            audit_metadata: Metadata to include in SIEM logging events
+            thread_id: Continue an existing thread instead of starting one
+            mode: "extract" (default) or "chat"
+            exchange: Data provider options, forwarded as sent
         Returns:
             Final agent response when completed
         """
@@ -1402,8 +1560,13 @@ class FirecrawlClient:
             max_credits=max_credits,
             strict_constrain_to_urls=strict_constrain_to_urls,
             model=model,
+            effort=effort,
             webhook=webhook,
             threat_protection=threat_protection,
+            audit_metadata=audit_metadata,
+            thread_id=thread_id,
+            mode=mode,
+            exchange=exchange,
         )
 
     def get_agent_status(self, job_id: str):
@@ -1427,6 +1590,59 @@ class FirecrawlClient:
             True if the agent was cancelled
         """
         return agent_module.cancel_agent(self.http_client, job_id)
+
+    def list_agents(self, *, before: Optional[int] = None):
+        """List agent runs, most recent first.
+
+        Pages are fixed at 20 runs. To fetch the next page, pass the `before`
+        value from the previous page's `next` URL. This method does not
+        auto-paginate.
+
+        Args:
+            before: Only return agent runs created before this unix ms timestamp
+
+        Returns:
+            AgentListResponse with the list of agent runs and optional next URL
+        """
+        return agent_module.list_agents(self.http_client, before=before)
+
+    def get_agent_thread(self, thread_id: str, *, include_data: bool = False):
+        """Get a thread and its runs, oldest turn first.
+
+        Args:
+            thread_id: Thread ID, as returned by start_agent or get_agent_status
+            include_data: Inline each succeeded run's data
+
+        Returns:
+            AgentThreadResponse with the thread and its runs
+        """
+        return agent_module.get_agent_thread(
+            self.http_client, thread_id, include_data=include_data
+        )
+
+    def get_agent_trace(self, job_id: str, *, live_view: bool = False):
+        """Get the execution trace of an agent job (spark-2 runs only).
+
+        Args:
+            job_id: Agent job ID
+            live_view: Also include currently active browser sessions with live view URLs
+
+        Returns:
+            AgentTraceResponse with the ordered trace events
+        """
+        return agent_module.get_agent_trace(self.http_client, job_id, live_view=live_view)
+
+    def get_agent_snapshot(self, job_id: str, snapshot_id: str):
+        """Get the full content of an artifact snapshot referenced by a trace event.
+
+        Args:
+            job_id: Agent job ID
+            snapshot_id: Snapshot ID from an artifact.updated trace event
+
+        Returns:
+            AgentSnapshotResponse with the snapshot content
+        """
+        return agent_module.get_agent_snapshot(self.http_client, job_id, snapshot_id)
 
     def get_concurrency(self):
         """Get current concurrency and maximum allowed for this team/key (v2)."""
@@ -1583,6 +1799,7 @@ class FirecrawlClient:
         store_in_cache: Optional[bool] = None,
         lockdown: Optional[bool] = None,
         threat_protection: Optional[ThreatProtectionOptions] = None,
+        audit_metadata: Optional[AuditMetadata] = None,
         webhook: Optional[Union[str, WebhookConfig]] = None,
         append_to_id: Optional[str] = None,
         ignore_invalid_urls: Optional[bool] = None,
@@ -1632,6 +1849,7 @@ class FirecrawlClient:
             max_concurrency=max_concurrency,
             zero_data_retention=zero_data_retention,
             integration=integration,
+            audit_metadata=audit_metadata,
             idempotency_key=idempotency_key,
             poll_interval=poll_interval,
             timeout=wait_timeout,

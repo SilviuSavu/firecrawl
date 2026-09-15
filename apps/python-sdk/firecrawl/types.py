@@ -12,6 +12,10 @@ from .v2.types import (
     
     Document,
     DocumentMetadata,
+    PdfBlockConfidence,
+    PdfBlockItem,
+    PdfPageBlocks,
+    PdfPage,
     
     
     ScrapeFormats,
@@ -56,6 +60,15 @@ from .v2.types import (
     SearchResultNews,
     SearchResultImages,
     SearchData,
+    DeveloperSearchType,
+    DeveloperSearchRequest,
+    DeveloperSearchLicenseDisclosure,
+    DeveloperSearchPassage,
+    DeveloperSearchResult,
+    DeveloperSearchRepoTypes,
+    DeveloperSearchRepoStatus,
+    DeveloperSearchSourceStatus,
+    DeveloperSearchResponse,
     
     
     WaitAction,
@@ -67,6 +80,7 @@ from .v2.types import (
     ScrapeAction,
     ExecuteJavascriptAction,
     PDFAction,
+    PDFParser,
     
     
     QueueStatusResponse,
@@ -96,6 +110,10 @@ __all__ = [
     
     'Document',
     'DocumentMetadata',
+    'PdfBlockConfidence',
+    'PdfBlockItem',
+    'PdfPageBlocks',
+    'PdfPage',
     
     
     'ScrapeFormats',
@@ -141,6 +159,15 @@ __all__ = [
     'SearchResultNews',
     'SearchResultImages',
     'SearchData',
+    'DeveloperSearchType',
+    'DeveloperSearchRequest',
+    'DeveloperSearchLicenseDisclosure',
+    'DeveloperSearchPassage',
+    'DeveloperSearchResult',
+    'DeveloperSearchRepoTypes',
+    'DeveloperSearchRepoStatus',
+    'DeveloperSearchSourceStatus',
+    'DeveloperSearchResponse',
     
     
     'WaitAction',
@@ -152,6 +179,7 @@ __all__ = [
     'ScrapeAction',
     'ExecuteJavascriptAction',
     'PDFAction',
+    'PDFParser',
 
     
     'QueueStatusResponse',
