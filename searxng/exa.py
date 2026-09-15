@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Exa (https://exa.ai) -- neural/semantic web search via the Exa JSON API.
 
 Exa retrieves pages by meaning (embeddings) rather than keyword match, so it
@@ -36,17 +36,17 @@ about = {
 categories = ["general"]
 shortcut = "exa"
 
-# Exa has no offset pagination in its basic search -- it returns up to
-# numResults per call. Firecrawl accumulates/dedups across engines, so a single
-# page of ~10 is plenty for the /search use case.
+
+
+
 paging = False
 page_size = 10
 
 language_support = True
 time_range_support = True
 
-# SearXNG time_range -> Exa startPublishedDate cutoff (Exa filters by publish
-# date, not a generic "freshness" flag).
+
+
 _TIME_RANGE_DELTA = {
     "day": timedelta(days=1),
     "week": timedelta(weeks=1),
@@ -62,20 +62,20 @@ def request(query, params):
     if not api_key:
         raise SearxEngineAPIException("EXA_API_KEY env var is not set")
 
-    # SearXNG language is BCP47 ("en-US") or "all"; Exa wants a 2-letter code.
+    
     lang = (params.get("language") or "en").replace("all", "en").lower()
     lang_code = lang.split("-")[0] or "en"
 
     body = {
         "query": query,
-        # "auto" lets Exa pick neural vs keyword per query -- best recall for a
-        # general backend that does not know the query's intent ahead of time.
+        
+        
         "type": "auto",
         "numResults": page_size,
         "language": lang_code,
-        # Highlights are a cheap ($1/1k) short snippet; Firecrawl scrapes the
-        # URL for full content, so we do NOT pull full text (avoids the extra
-        # cost and payload).
+        
+        
+        
         "contents": {"highlights": True, "numSentences": 3},
     }
 
@@ -99,7 +99,7 @@ def response(resp):
     except ValueError:
         raise SearxEngineAPIException("invalid JSON response from Exa")
 
-    # Exa returns JSON with an error field on auth/quota/parameter failures.
+    
     if isinstance(data, dict) and data.get("error"):
         raise SearxEngineAPIException(str(data["error"]))
 

@@ -19,7 +19,7 @@ from .v1 import (
 
 __version__ = "4.32.1"
 
-# Define the logger for the Firecrawl project
+
 logger: logging.Logger = logging.getLogger("firecrawl")
 
 

@@ -17,8 +17,8 @@ from pydantic import (
     model_validator,
 )
 
-# Suppress pydantic warnings about schema field shadowing
-# Tested using schema_field alias="schema" but it doesn't work.
+
+
 warnings.filterwarnings(
     "ignore",
     message='Field name "schema" in "Format" shadows an attribute in parent "BaseModel"',
@@ -50,11 +50,11 @@ warnings.filterwarnings(
 
 T = TypeVar("T")
 
-# Module logger
+
 logger = logging.getLogger("firecrawl")
 
 
-# Base response types
+
 class BaseResponse(BaseModel, Generic[T]):
     """Base response structure for all API responses."""
 
@@ -64,7 +64,7 @@ class BaseResponse(BaseModel, Generic[T]):
     warning: Optional[str] = None
 
 
-# Document and content types
+
 class DocumentMetadata(BaseModel):
     """Metadata for scraped documents (snake_case only; API camelCase normalized in code)."""
 
@@ -80,7 +80,7 @@ class DocumentMetadata(BaseModel):
                     out[k] = v
         return out
 
-    # Common metadata fields
+    
     title: Optional[str] = None
     description: Optional[str] = None
     url: Optional[str] = None
@@ -88,7 +88,7 @@ class DocumentMetadata(BaseModel):
     keywords: Optional[Union[str, List[str]]] = None
     robots: Optional[str] = None
 
-    # OpenGraph and social metadata
+    
     og_title: Optional[str] = None
     og_description: Optional[str] = None
     og_url: Optional[str] = None
@@ -100,7 +100,7 @@ class DocumentMetadata(BaseModel):
     og_site_name: Optional[str] = None
     og_video: Optional[str] = None
 
-    # Dublin Core and other site metadata
+    
     favicon: Optional[str] = None
     dc_terms_created: Optional[str] = None
     dc_date_created: Optional[str] = None
@@ -118,7 +118,7 @@ class DocumentMetadata(BaseModel):
     article_tag: Optional[str] = None
     article_section: Optional[str] = None
 
-    # Response-level metadata
+    
     source_url: Optional[str] = None
     status_code: Optional[int] = None
     scrape_id: Optional[str] = None
@@ -133,7 +133,7 @@ class DocumentMetadata(BaseModel):
     concurrency_limited: Optional[bool] = None
     concurrency_queue_duration_ms: Optional[int] = None
 
-    # Error information
+    
     error: Optional[str] = None
 
     @property
@@ -145,7 +145,7 @@ class DocumentMetadata(BaseModel):
     @staticmethod
     def _coerce_list_to_string(value: Any) -> Any:
         if isinstance(value, list):
-            # Prefer first string if semantically a single-valued field, else join
+            
             if len(value) == 1:
                 return str(value[0])
             return ", ".join(str(item) for item in value)
@@ -208,7 +208,7 @@ class DocumentMetadata(BaseModel):
         for k, v in list(data.items()):
             if isinstance(v, list) and k in single_str_fields:
                 data[k] = cls._coerce_list_to_string(v)
-            # For ints that might appear as list, take first
+            
             if isinstance(v, list) and k in {
                 "status_code",
                 "num_pages",
@@ -477,7 +477,7 @@ class Document(BaseModel):
         md = self.metadata
         if isinstance(md, DocumentMetadata):
             out = md.model_dump(exclude_none=True)
-            # Ensure extras are preserved even if model_dump omits them
+            
             extra = getattr(md, "__pydantic_extra__", None)
             if isinstance(extra, dict):
                 for k, v in extra.items():
@@ -489,7 +489,7 @@ class Document(BaseModel):
         return {}
 
 
-# Webhook types
+
 class WebhookConfig(BaseModel):
     """Configuration for webhooks."""
 
@@ -568,7 +568,7 @@ class Category(BaseModel):
 CategoryOption = Union[str, Category]
 
 FormatString = Literal[
-    # camelCase versions (API format)
+    
     "markdown",
     "html",
     "rawHtml",
@@ -585,7 +585,7 @@ FormatString = Literal[
     "query",
     "audio",
     "video",
-    # snake_case versions (user-friendly)
+    
     "raw_html",
     "change_tracking",
 ]
@@ -681,7 +681,7 @@ FormatOption = Union[
 ]
 
 
-# Scrape types
+
 class ScrapeFormats(BaseModel):
     """Output formats for scraping."""
 
@@ -720,7 +720,7 @@ class ScrapeFormats(BaseModel):
                     raise ValueError("question format requires a non-empty 'question' string")
                 if fmt_type == 'highlights' and (not isinstance(query, str) or not query.strip()):
                     raise ValueError("highlights format requires a non-empty 'query' string")
-                # Preserve dicts as-is to avoid dropping custom fields like 'schema'
+                
                 normalized_formats.append(format_item)
             elif isinstance(format_item, Format):
                 normalized_formats.append(format_item)
@@ -733,15 +733,15 @@ class ScrapeFormats(BaseModel):
 class RedactPIIOptions(BaseModel):
     """Tuning options for the PII redaction step."""
 
-    # accurate (default): model-only. Best precision, cleanest output.
-    # aggressive: model + Presidio + spaCy. Higher recall, lower precision.
-    # fast: Presidio only, no model call. Lower F1, ~2x throughput.
+    
+    
+    
     mode: Optional[Literal["accurate", "aggressive", "fast"]] = None
-    # Restrict redaction to these entity buckets. Unset means all entities.
+    
     entities: Optional[List[RedactPIIEntity]] = None
-    # tag (default): replace spans with `<KIND>` placeholders.
-    # mask: replace spans with `*` of equal length.
-    # remove: drop span characters entirely.
+    
+    
+    
     replace_style: Optional[Literal["tag", "mask", "remove"]] = Field(
         default=None, alias="replaceStyle"
     )
@@ -758,19 +758,19 @@ class ThreatProtectionOptions(BaseModel):
     explicitly provide replace the team policy's values.
     """
 
-    # "off" disables scanning for this request; "normal" applies the policy.
+    
     mode: Optional[Literal["off", "normal"]] = None
-    # Block verdicts at or above this risk score (integer 0-100).
+    
     risk_score_threshold: Optional[int] = Field(
         default=None, alias="riskScoreThreshold"
     )
-    # Exact domains or globs like "*.example.com" to always block (max 1000).
+    
     blacklist: Optional[List[str]] = None
-    # Exact domains or globs to always allow; wins over everything (max 1000).
+    
     whitelist: Optional[List[str]] = None
-    # Lowercase TLDs without the leading dot, e.g. "zip" (max 1000).
+    
     blocked_tlds: Optional[List[str]] = Field(default=None, alias="blockedTlds")
-    # Behavior when scanning is unavailable: "closed" blocks, "open" allows.
+    
     failure_policy: Optional[Literal["open", "closed"]] = Field(
         default=None, alias="failurePolicy"
     )
@@ -842,8 +842,8 @@ class ScrapeOptions(BaseModel):
         )
 
 
-# Parse accepts a strict subset of scrape options; unsupported fields are
-# rejected by parse-specific request preparation.
+
+
 ParseOptions = ScrapeOptions
 
 
@@ -866,7 +866,7 @@ class ScrapeResponse(BaseResponse[ScrapeData]):
     pass
 
 
-# Crawl types
+
 class CrawlRequest(BaseModel):
     """Request for crawling a website."""
 
@@ -957,7 +957,7 @@ class MapDocument(Document):
     description: Optional[str] = None
 
 
-# Crawl params types
+
 class CrawlParamsRequest(BaseModel):
     """Request for getting crawl parameters from LLM."""
 
@@ -995,7 +995,7 @@ class CrawlParamsResponse(BaseResponse[CrawlParamsData]):
     pass
 
 
-# Batch scrape types
+
 class BatchScrapeRequest(BaseModel):
     """Request for batch scraping multiple URLs (internal helper only)."""
 
@@ -1041,7 +1041,7 @@ class BatchScrapeErrorsRequest(BaseModel):
     job_id: str
 
 
-# Map types
+
 class MapOptions(BaseModel):
     """Options for mapping operations."""
 
@@ -1075,7 +1075,7 @@ class MapResponse(BaseResponse[MapData]):
     pass
 
 
-# Monitor types
+
 class MonitorSchedule(BaseModel):
     """Schedule for a monitor.
 
@@ -1143,7 +1143,7 @@ class MonitorTarget(BaseModel):
     url: Optional[str] = None
     scrape_options: Optional[Union[ScrapeOptions, Dict[str, Any]]] = Field(default=None, alias="scrapeOptions")
     crawl_options: Optional[Dict[str, Any]] = Field(default=None, alias="crawlOptions")
-    # search target fields
+    
     queries: Optional[List[str]] = None
     search_window: Optional[Literal["5m", "15m", "1h", "6h", "24h", "7d"]] = Field(default=None, alias="searchWindow")
     include_domains: Optional[List[str]] = Field(default=None, alias="includeDomains")
@@ -1202,9 +1202,9 @@ class Monitor(BaseModel):
     targets: List[Dict[str, Any]]
     webhook: Optional[Dict[str, Any]] = None
     notification: Optional[Dict[str, Any]] = None
-    # Present on create/update/get when the API has reconciled email
-    # recipients (i.e. notification.email.recipients is non-empty). Each
-    # entry reports a recipient's opt-in status.
+    
+    
+    
     email_recipient_subscriptions: Optional[List[MonitorEmailRecipientSubscription]] = (
         Field(default=None, alias="emailRecipientSubscriptions")
     )
@@ -1285,7 +1285,7 @@ class MonitorPageDiff(BaseModel):
     model_config = {"populate_by_name": True, "extra": "allow"}
 
     text: Optional[str] = None
-    json: Optional[Any] = None  # markdown→parseDiff AST | json→field diff
+    json: Optional[Any] = None  
 
 
 class MonitorPageSnapshot(BaseModel):
@@ -1318,7 +1318,7 @@ class MonitorCheckDetail(MonitorCheck):
     next: Optional[str] = None
 
 
-# Extract types
+
 class ExtractRequest(BaseModel):
     """Request for extract operations."""
 
@@ -1365,7 +1365,7 @@ class AgentResponse(BaseModel):
     credits_used: Optional[int] = None
 
 
-# Browser types
+
 class BrowserCreateResponse(BaseModel):
     """Response from creating a browser session."""
 
@@ -1424,7 +1424,7 @@ class BrowserListResponse(BaseModel):
     error: Optional[str] = None
 
 
-# Usage/limits types
+
 class ConcurrencyCheck(BaseModel):
     """Current concurrency and limits for the team/API key."""
 
@@ -1490,7 +1490,7 @@ class TokenUsageHistoricalResponse(BaseModel):
     periods: List[TokenUsageHistoricalPeriod]
 
 
-# Action types
+
 class WaitAction(BaseModel):
     """Wait action to perform during scraping."""
 
@@ -1581,7 +1581,7 @@ class PDFParser(BaseModel):
     max_pages: Optional[int] = None
 
 
-# Location types
+
 class Location(BaseModel):
     """Location configuration for scraping."""
 
@@ -1604,8 +1604,8 @@ class SearchRequest(BaseModel):
     timeout: Optional[int] = 300000
     highlights: Optional[bool] = None
     scrape_options: Optional[ScrapeOptions] = None
-    # Enterprise search options. Use ["zdr"] for end-to-end Zero Data
-    # Retention or ["anon"] for anonymized search. Must be enabled for your team.
+    
+    
     enterprise: Optional[List[str]] = None
     threat_protection: Optional[ThreatProtectionOptions] = None
     integration: Optional[str] = None
@@ -1659,7 +1659,7 @@ class SearchRequest(BaseModel):
             )
         return self
 
-    # NOTE: parsers validation does not belong on SearchRequest; it is part of ScrapeOptions.
+    
 
 
 class LinkResult(BaseModel):
@@ -1670,7 +1670,7 @@ class LinkResult(BaseModel):
     description: Optional[str] = None
 
 
-# Backward-compatible alias for existing tests/usages
+
 SearchResult = LinkResult
 
 
@@ -1702,7 +1702,7 @@ class SearchResponse(BaseResponse[SearchData]):
     pass
 
 
-# Error types
+
 class ErrorDetails(BaseModel):
     """Detailed error information."""
 
@@ -1719,7 +1719,7 @@ class ErrorResponse(BaseModel):
     details: Optional[ErrorDetails] = None
 
 
-# Job management types
+
 class JobStatus(BaseModel):
     """Generic job status information."""
 
@@ -1777,7 +1777,7 @@ class ActiveCrawlsRequest(BaseModel):
     pass
 
 
-# Configuration types
+
 class ClientConfig(BaseModel):
     """Configuration for the Firecrawl client."""
 
@@ -1794,10 +1794,10 @@ class PaginationConfig(BaseModel):
     auto_paginate: bool = True
     max_pages: Optional[int] = Field(default=None, ge=0)
     max_results: Optional[int] = Field(default=None, ge=0)
-    max_wait_time: Optional[int] = Field(default=None, ge=0)  # seconds
+    max_wait_time: Optional[int] = Field(default=None, ge=0)  
 
 
-# Response union types
+
 AnyResponse = Union[
     ScrapeResponse,
     CrawlResponse,

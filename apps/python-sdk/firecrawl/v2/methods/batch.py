@@ -69,7 +69,7 @@ def start_batch_scrape(
     Raises:
         FirecrawlError: If the batch scrape operation fails to start
     """
-    # Prepare request data
+    
     request_data = prepare_batch_scrape_request(
         urls,
         options=options,
@@ -81,15 +81,15 @@ def start_batch_scrape(
         integration=integration,
     )
     
-    # Make the API request
-    headers = client._prepare_headers(idempotency_key)  # type: ignore[attr-defined]
+    
+    headers = client._prepare_headers(idempotency_key)  
     response = client.post("/v2/batch/scrape", request_data, headers=headers)
     
-    # Handle errors
+    
     if not response.ok:
         handle_response_error(response, "start batch scrape")
     
-    # Parse response
+    
     body = response.json()
     if not body.get("success"):
         raise Exception(body.get("error", "Unknown error occurred"))
@@ -119,19 +119,19 @@ def get_batch_scrape_status(
     Raises:
         FirecrawlError: If the status check fails
     """
-    # Make the API request
+    
     response = client.get(f"/v2/batch/scrape/{job_id}")
     
-    # Handle errors
+    
     if not response.ok:
         handle_response_error(response, "get batch scrape status")
     
-    # Parse response
+    
     body = response.json()
     payload = _parse_batch_scrape_status_response(body)
     documents = payload["data"]
 
-    # Handle pagination if requested
+    
     auto_paginate = pagination_config.auto_paginate if pagination_config else True
     if auto_paginate and payload["next"]:
         documents = _fetch_all_batch_pages(
@@ -213,7 +213,7 @@ def _fetch_all_batch_pages(
     current_url = next_url
     page_count = 0
     
-    # Apply pagination limits
+    
     max_pages = pagination_config.max_pages if pagination_config else None
     max_results = pagination_config.max_results if pagination_config else None
     max_wait_time = pagination_config.max_wait_time if pagination_config else None
@@ -221,18 +221,18 @@ def _fetch_all_batch_pages(
     start_time = time.monotonic()
     
     while current_url:
-        # Check pagination limits (treat 0 as a valid limit)
+        
         if (max_pages is not None) and page_count >= max_pages:
             break
         
         if (max_wait_time is not None) and (time.monotonic() - start_time) > max_wait_time:
             break
         
-        # Fetch next page
+        
         response = client.get(current_url)
         
         if not response.ok:
-            # Log error but continue with what we have
+            
             import logging
             logger = logging.getLogger("firecrawl")
             logger.warning("Failed to fetch next page", extra={"status_code": response.status_code})
@@ -244,18 +244,18 @@ def _fetch_all_batch_pages(
         except Exception:
             break
         
-        # Add documents from this page
+        
         for document in page_payload["data"]:
-            # Check max_results limit
+            
             if max_results is not None and len(documents) >= max_results:
                 break
             documents.append(document)
         
-        # Check if we hit max_results limit after adding all docs from this page
+        
         if max_results is not None and len(documents) >= max_results:
             break
         
-        # Get next URL
+        
         current_url = page_payload["next"]
         page_count += 1
     
@@ -279,14 +279,14 @@ def cancel_batch_scrape(
     Raises:
         FirecrawlError: If the cancellation fails
     """
-    # Make the API request
+    
     response = client.delete(f"/v2/batch/scrape/{job_id}")
     
-    # Handle errors
+    
     if not response.ok:
         handle_response_error(response, "cancel batch scrape")
     
-    # Parse response
+    
     body = response.json()
     return body.get("status") == "cancelled"
 
@@ -318,15 +318,15 @@ def wait_for_batch_completion(
     while True:
         status_job = get_batch_scrape_status(client, job_id)
         
-        # Check if job is complete
+        
         if status_job.status in ["completed", "failed", "cancelled"]:
             return status_job
         
-        # Check timeout
+        
         if timeout and (time.monotonic() - start_time) > timeout:
             raise TimeoutError(f"Batch scrape job {job_id} did not complete within {timeout} seconds")
         
-        # Wait before next poll
+        
         time.sleep(poll_interval)
 
 
@@ -362,7 +362,7 @@ def batch_scrape(
         FirecrawlError: If the batch scrape fails to start or complete
         TimeoutError: If timeout is reached
     """
-    # Start the batch scrape
+    
     start = start_batch_scrape(
         client,
         urls,
@@ -378,7 +378,7 @@ def batch_scrape(
 
     job_id = start.id
 
-    # Wait for completion
+    
     return wait_for_batch_completion(
         client, job_id, poll_interval, timeout
     )
@@ -405,7 +405,7 @@ def validate_batch_urls(urls: List[str]) -> List[str]:
         if not url or not isinstance(url, str):
             raise ValueError(f"Invalid URL: {url}")
         
-        # Basic URL validation
+        
         if not (url.startswith("http://") or url.startswith("https://")):
             raise ValueError(f"URL must start with http:// or https://: {url}")
         
@@ -438,13 +438,13 @@ def prepare_batch_scrape_request(
     validated_urls = validate_batch_urls(urls)
     request_data: Dict[str, Any] = {"urls": validated_urls}
 
-    # Flatten scrape options at the top level (v2 behavior)
+    
     if options:
         scrape_data = prepare_scrape_options(options)
         if scrape_data:
             request_data.update(scrape_data)
 
-    # Batch-specific fields
+    
     if webhook is not None:
         if isinstance(webhook, str):
             request_data["webhook"] = webhook
@@ -511,7 +511,7 @@ def process_large_batch(
     completed_chunks = 0
     
     for chunk in url_chunks:
-        # Process this chunk
+        
         result = batch_scrape(
             client,
             chunk,
@@ -520,7 +520,7 @@ def process_large_batch(
             timeout=timeout,
         )
 
-        # Add documents from this chunk
+        
         if result.data:
             all_documents.extend(result.data)
         

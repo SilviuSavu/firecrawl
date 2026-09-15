@@ -208,7 +208,7 @@ async def test_async_search_all_parameters():
 
 @pytest.mark.asyncio
 async def test_async_search_formats_flexibility():
-    # Test with list format
+    
     results1 = await firecrawl.search(
         query="python programming",
         limit=1,
@@ -216,7 +216,7 @@ async def test_async_search_formats_flexibility():
             formats=["markdown"]
         )
     )
-    # Test with ScrapeFormats object
+    
     results2 = await firecrawl.search(
         query="python programming",
         limit=1,

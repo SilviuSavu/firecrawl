@@ -13,7 +13,7 @@ class Colors:
     RED = '\033[91m'
     RESET = '\033[0m'
 
-# Load environment variables
+
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
@@ -59,9 +59,9 @@ def poll_extraction(extraction_id, api_key, max_attempts=20):
     
     for attempt in range(max_attempts):
         try:
-            # print(f"{Colors.YELLOW}Polling attempt {attempt + 1}/{max_attempts}...{Colors.RESET}")
+            
             response = requests.get(url, headers=headers)
-            # print(f"Response status: {response.status_code}")
+            
             
             print(f"Raw response: {response.text}")
             
@@ -157,7 +157,7 @@ def display_comparison(data):
         
     print(f"\n{Colors.CYAN}=== Product Comparison ==={Colors.RESET}")
     
-    # Handle the data structure returned by Firecrawl
+    
     if isinstance(data, dict):
         product_info = data
         
@@ -172,7 +172,7 @@ def display_comparison(data):
         if reviews:
             print(f"\n{Colors.YELLOW}Review Analysis:{Colors.RESET}")
             
-            # Analyze reviews using OpenAI
+            
             prompt = f"""Analyze these product reviews and provide:
             1. Top 3 most frequently mentioned PROS
             2. Top 3 most frequently mentioned CONS
@@ -221,7 +221,7 @@ def display_comparison(data):
 def main():
     product_name = input(f"{Colors.CYAN}Enter product name to compare: {Colors.RESET}")
     
-    # Search and get URLs
+    
     amazon_results, walmart_results = search_product(product_name)
     amazon_url, walmart_url = get_product_urls(amazon_results, walmart_results)
     
@@ -229,11 +229,11 @@ def main():
         print(f"{Colors.RED}No valid product URLs found.{Colors.RESET}")
         return
     
-    # Extract info and reviews
+    
     urls = [url for url in [amazon_url, walmart_url] if url]
     product_data = extract_product_info_and_reviews(urls)
     
-    # Display results with improved formatting
+    
     display_comparison(product_data)
 
 if __name__ == "__main__":

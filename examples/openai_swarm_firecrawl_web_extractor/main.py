@@ -8,7 +8,7 @@ from openai import OpenAI
 
 dotenv.load_dotenv()
 
-# Initialize FirecrawlApp and OpenAI
+
 app = FirecrawlApp(api_key=os.getenv("FIRECRAWL_API_KEY"))
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -116,5 +116,5 @@ analyst_agent = Agent(
 )
 
 if __name__ == "__main__":
-    # Run the demo loop with the user interface agent
+    
     run_demo_loop(user_interface_agent, stream=True)

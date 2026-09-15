@@ -1,5 +1,5 @@
-// Placeholder v2 example (JavaScript)
-// Minimal usage of new FirecrawlClient. Replace with your API key before running.
+
+
 
 import { FirecrawlClient } from './firecrawl/src/v2/client.js';
 
@@ -31,7 +31,7 @@ run().catch((e) => {
   if (globalThis.process && globalThis.process.exit) globalThis.process.exit(1);
 });
 
-// old stuff:
+
 
 import { Firecrawl } from 'firecrawl';
 import { z } from 'zod';
@@ -40,18 +40,18 @@ const app = new Firecrawl({apiKey: "fc-YOUR_API_KEY"});
 
 const main = async () => {
 
-  // Scrape a website:
+  
   const scrapeResult = await app.scrapeUrl('firecrawl.dev');
 
   if (scrapeResult.success) {
     console.log(scrapeResult.markdown)
   }
 
-  // Crawl a website:
+  
   const crawlResult = await app.crawlUrl('mendable.ai', { excludePaths: ['blog/*'], limit: 5});
   console.log(crawlResult);
 
-  // Asynchronously crawl a website:
+  
   const asyncCrawlResult = await app.asyncCrawlUrl('mendable.ai', { excludePaths: ['blog/*'], limit: 5});
   
   if (asyncCrawlResult.success) {
@@ -65,7 +65,7 @@ const main = async () => {
         if (checkStatus.success && checkStatus.status === 'completed') {
           break;
         }
-        await new Promise(resolve => setTimeout(resolve, 1000)); // wait 1 second
+        await new Promise(resolve => setTimeout(resolve, 1000)); 
       }
 
       if (checkStatus.success && checkStatus.data) {
@@ -74,11 +74,11 @@ const main = async () => {
     }
   }
 
-  // Map a website:
+  
   const mapResult = await app.mapUrl('https://firecrawl.dev');
   console.log(mapResult)
 
-  // Extract information from a website using LLM:
+  
   const extractSchema = z.object({
     title: z.string(),
     description: z.string(),
@@ -91,7 +91,7 @@ const main = async () => {
   });
   console.log(extractResult);
 
-  // Crawl a website with WebSockets:
+  
   const watch = await app.crawlUrlAndWatch('mendable.ai', { excludePaths: ['blog/*'], limit: 5});
 
   watch.addEventListener("document", doc => {

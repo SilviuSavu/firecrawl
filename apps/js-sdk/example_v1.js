@@ -1,7 +1,7 @@
 import { Firecrawl } from 'firecrawl';
 
-// Placeholder v1 example (JavaScript)
-// Mirrors the older SDK usage. Replace with your API key before running.
+
+
 
 async function main() {
   const app = new Firecrawl({ apiKey: process.env.FIRECRAWL_API_KEY || 'fc-YOUR_API_KEY' });

@@ -6,14 +6,14 @@ Currently exports v2 types as the primary interface.
 """
 
 from .v2.types import (
-    # Base types
+    
     BaseResponse,
     
-    # Document types
+    
     Document,
     DocumentMetadata,
     
-    # Scrape types
+    
     ScrapeFormats,
     ScrapeOptions,
     ScrapeRequest,
@@ -21,7 +21,7 @@ from .v2.types import (
     ScrapeResponse,
     ThreatProtectionOptions,
     
-    # Crawl types
+    
     CrawlRequest,
     CrawlJob,
     CrawlResponse,
@@ -31,18 +31,18 @@ from .v2.types import (
     CrawlErrorsResponse,
     ActiveCrawlsResponse,
     
-    # Batch scrape types
+    
     BatchScrapeRequest,
     BatchScrapeJob,
     BatchScrapeResponse,
     
-    # Map types
+    
     MapOptions,
     MapRequest,
     MapData,
     MapResponse,
     
-    # Search types
+    
     Source,
     SourceOption,
     Format,
@@ -57,7 +57,7 @@ from .v2.types import (
     SearchResultImages,
     SearchData,
     
-    # Action types
+    
     WaitAction,
     ScreenshotAction,
     ClickAction,
@@ -68,36 +68,36 @@ from .v2.types import (
     ExecuteJavascriptAction,
     PDFAction,
     
-    # Usage types
+    
     QueueStatusResponse,
 
-    # Location and format types
+    
     Location,
     
-    # Error types
+    
     ErrorDetails,
     ErrorResponse,
     
-    # Job management types
+    
     JobStatus,
     
-    # Webhook types
+    
     WebhookData,
     
-    # Configuration types
+    
     ClientConfig,
     AgentOptions,
 )
 
 __all__ = [
-    # Base types
+    
     'BaseResponse',
     
-    # Document types
+    
     'Document',
     'DocumentMetadata',
     
-    # Scrape types
+    
     'ScrapeFormats',
     'ScrapeOptions',
     'ScrapeRequest',
@@ -105,7 +105,7 @@ __all__ = [
     'ScrapeResponse',
     'ThreatProtectionOptions',
     
-    # Crawl types
+    
     'CrawlRequest',
     'CrawlJob',
     'CrawlJobData',
@@ -116,18 +116,18 @@ __all__ = [
     'CrawlErrorsResponse',
     'ActiveCrawlsResponse',
     
-    # Batch scrape types
+    
     'BatchScrapeRequest',
     'BatchScrapeJob',
     'BatchScrapeResponse',
     
-    # Map types
+    
     'MapOptions',
     'MapRequest',
     'MapData',
     'MapResponse',
     
-    # Search types
+    
     'Source',
     'SourceOption',
     'Format',
@@ -142,7 +142,7 @@ __all__ = [
     'SearchResultImages',
     'SearchData',
     
-    # Action types
+    
     'WaitAction',
     'ScreenshotAction',
     'ClickAction',
@@ -153,23 +153,23 @@ __all__ = [
     'ExecuteJavascriptAction',
     'PDFAction',
 
-    # Usage types
+    
     'QueueStatusResponse',
     
-    # Location and format types
+    
     'Location',
     
-    # Error types
+    
     'ErrorDetails',
     'ErrorResponse',
     
-    # Job management types
+    
     'JobStatus',
     
-    # Webhook types
+    
     'WebhookData',
     
-    # Configuration types
+    
     'ClientConfig',
     'AgentOptions',
 ]  

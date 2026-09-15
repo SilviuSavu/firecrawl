@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from serpapi.google_search import GoogleSearch
 from google import genai
 
-# ANSI color codes
+
 class Colors:
     CYAN = '\033[96m'
     YELLOW = '\033[93m'
@@ -16,10 +16,10 @@ class Colors:
     BLUE = '\033[94m'
     RESET = '\033[0m'
 
-# Load environment variables
+
 load_dotenv()
 
-# Initialize clients
+
 client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
 serp_api_key = os.getenv("SERP_API_KEY")
@@ -61,7 +61,7 @@ def select_urls_with_gemini(company, objective, serp_results):
             contents=prompt
         )
 
-        # Clean the response text
+        
         cleaned_response = response.text.strip()
         if cleaned_response.startswith('```'):
             cleaned_response = cleaned_response.split('```')[1]
@@ -70,20 +70,20 @@ def select_urls_with_gemini(company, objective, serp_results):
         cleaned_response = cleaned_response.strip()
 
         try:
-            # Parse JSON response
+            
             result = json.loads(cleaned_response)
             if isinstance(result, dict) and "selected_urls" in result:
                 urls = result["selected_urls"]
             else:
-                # Fallback to text parsing
+                
                 urls = [line.strip() for line in cleaned_response.split('\n') 
                        if line.strip().startswith(('http://', 'https://'))]
         except json.JSONDecodeError:
-            # Fallback to text parsing
+            
             urls = [line.strip() for line in cleaned_response.split('\n') 
                    if line.strip().startswith(('http://', 'https://'))]
 
-        # Clean up URLs
+        
         cleaned_urls = [url.replace('/*', '').rstrip('/') for url in urls]
         cleaned_urls = [url for url in cleaned_urls if url]
 

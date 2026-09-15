@@ -23,7 +23,7 @@ def example_watcher() -> None:
 
     client = Firecrawl(api_key=api_key, api_url=api_url)
 
-    # Start a small crawl job
+    
     job = client.start_crawl("https://docs.firecrawl.dev", limit=2)
 
     events = {"document": 0, "done": 0}
@@ -35,7 +35,7 @@ def example_watcher() -> None:
     w.add_listener(lambda s: statuses.append(s.status))
     w.start()
 
-    # Wait until terminal
+    
     deadline = time.time() + 180
     while time.time() < deadline:
         if statuses and statuses[-1] in ("completed", "failed"):
@@ -57,7 +57,7 @@ async def example_async_watcher() -> None:
 
     client = Firecrawl(api_key=api_key, api_url=api_url)
 
-    # Start a small crawl job
+    
     job = client.start_crawl("https://docs.firecrawl.dev", limit=2)
 
     async for snapshot in AsyncWatcher(client, job.id, kind="crawl"):

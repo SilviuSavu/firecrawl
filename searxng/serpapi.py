@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """SerpApi (https://serpapi.com) — Google results via the SerpApi JSON API.
 
 Stock SearXNG google engines scrape google.com, which rate-limits / CAPTCHAs a
@@ -34,11 +34,11 @@ language_support = True
 time_range_support = True
 safesearch = True
 
-# SearXNG time_range -> Google `tbs` quick-date-range value.
+
 _TBS = {"day": "qdr:d", "week": "qdr:w", "month": "qdr:m", "year": "qdr:y"}
 
-# Flat Knowledge-Graph keys to render as infobox attribute rows. SerpApi exposes
-# entity facts as top-level string keys (born, died, spouse, ...).
+
+
 _ATTR_KEYS = [
     "born", "died", "age", "spouse", "children", "parents", "education",
     "occupation", "nationality", "known_for", "awards", "height", "net_worth",
@@ -54,7 +54,7 @@ def request(query, params):
     if not api_key:
         raise SearxEngineAPIException("SERPAPI_API_KEY env var is not set")
 
-    # SearXNG language is BCP47 ("en-US") or "all"; split into hl/gl for SerpApi.
+    
     lang = params.get("language") or "en"
     parts = lang.replace("all", "en").split("-")
     hl = parts[0] or "en"
@@ -135,8 +135,8 @@ def response(resp):
 
     results = []
 
-    # Build organic results first so the Knowledge-Graph passthrough can skip a
-    # source URL that already ranks organically (no double-counting / re-scrape).
+    
+    
     organic = []
     seen = set()
     for item in data.get("organic_results") or []:
@@ -152,16 +152,16 @@ def response(resp):
         )
         seen.add(_norm_url(link))
 
-    # Answer box / featured snippet — SearXNG renders these at the very top.
+    
     answer_box = data.get("answer_box") or {}
     answer = answer_box.get("answer") or answer_box.get("snippet") or answer_box.get("result")
     if answer and str(answer).strip():
         results.append({"answer": str(answer).strip()})
 
-    # Knowledge Graph — infobox for the SearXNG UI, plus a leading organic
-    # result so it survives Firecrawl's organic-only /v1/search transform and
-    # reaches the agent. The organic copy is skipped if the KG source URL is
-    # already an organic result, to avoid scraping the same page twice.
+    
+    
+    
+    
     knowledge_graph = data.get("knowledge_graph")
     if knowledge_graph and (knowledge_graph.get("title") or knowledge_graph.get("description")):
         results.append(_knowledge_graph_infobox(knowledge_graph))

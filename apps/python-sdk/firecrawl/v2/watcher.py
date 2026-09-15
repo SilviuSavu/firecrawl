@@ -44,7 +44,7 @@ class Watcher:
         self._api_url: Optional[str] = getattr(http_client, "api_url", None)
         self._api_key: Optional[str] = getattr(http_client, "api_key", None)
 
-        # v1-parity state and event handlers
+        
         self.status: str = "scraping"
         self.data: List[Dict[str, Any]] = []
         self._event_handlers: Dict[str, List[Callable[[Dict[str, Any]], None]]] = {
@@ -65,7 +65,7 @@ class Watcher:
             except Exception:
                 pass
 
-    # v1-like events API
+    
     def add_event_listener(self, event_type: str, handler: Callable[[Dict[str, Any]], None]) -> None:
         if event_type in self._event_handlers:
             self._event_handlers[event_type].append(handler)
@@ -96,7 +96,7 @@ class Watcher:
             async with websockets.connect(uri, max_size=None, additional_headers=headers_list) as websocket:
                 deadline = asyncio.get_event_loop().time() + self._timeout if self._timeout else None
                 while not self._stop.is_set():
-                    # Use short recv timeouts to allow HTTP polling fallback
+                    
                     if deadline is not None:
                         remaining = max(0.0, deadline - asyncio.get_event_loop().time())
                         timeout = min(self._poll_interval or remaining, remaining)
@@ -105,7 +105,7 @@ class Watcher:
                     try:
                         msg = await asyncio.wait_for(websocket.recv(), timeout=timeout)
                     except asyncio.TimeoutError:
-                        # Quiet period: poll HTTP once to progress statuses
+                        
                         if await self._poll_status_once():
                             break
                         else:
@@ -113,7 +113,7 @@ class Watcher:
                     except asyncio.CancelledError:
                         break
                     except Exception:
-                        # Connection error: switch to HTTP polling until terminal or timeout
+                        
                         while not self._stop.is_set():
                             if await self._poll_status_once():
                                 return
@@ -127,7 +127,7 @@ class Watcher:
                     except Exception:
                         continue
 
-                    # v1-style typed event handling
+                    
                     msg_type = body.get("type")
                     if msg_type == "error":
                         self.status = "failed"
@@ -138,7 +138,7 @@ class Watcher:
                             "id": self._job_id,
                         })
                         self._sent_error = True
-                        # Emit a final failed snapshot for listeners
+                        
                         if self._kind == "crawl":
                             job = CrawlJob(status="failed", completed=0, total=0, credits_used=0, expires_at=None, next=None, data=[])
                         else:
@@ -159,17 +159,17 @@ class Watcher:
                             self.dispatch_event("document", {"data": doc, "id": self._job_id})
                     elif msg_type == "done":
                         self.status = "completed"
-                        # Gather any documents in the done payload
+                        
                         raw_payload = body.get("data", {}) or {}
                         docs_in = raw_payload.get("data", []) or []
                         if isinstance(docs_in, list) and docs_in:
                             for doc in docs_in:
                                 if isinstance(doc, dict):
                                     self.data.append(doc)
-                        # Dispatch done event first
+                        
                         self.dispatch_event("done", {"status": self.status, "data": self.data, "id": self._job_id})
                         self._sent_done = True
-                        # Emit a final completed snapshot for listeners and break immediately
+                        
                         docs: List[Document] = []
                         for doc in self.data:
                             if isinstance(doc, dict):
@@ -199,7 +199,7 @@ class Watcher:
                         break
 
                     payload = body.get("data", body)
-                    # Only treat messages with an explicit status as job snapshots
+                    
                     has_status_field = (isinstance(payload, dict) and "status" in payload) or ("status" in body)
                     if not has_status_field:
                         continue
@@ -222,7 +222,7 @@ class Watcher:
                         )
                         self._emit(job)
                         if status_str in ("completed", "failed", "cancelled"):
-                            # Ensure done/error dispatched even if server didn't send explicit event type
+                            
                             if status_str == "completed" and not self._sent_done:
                                 self.dispatch_event("done", {"status": status_str, "data": self.data, "id": self._job_id})
                                 self._sent_done = True
@@ -257,7 +257,7 @@ class Watcher:
         except Exception:
             pass
         finally:
-            # Ensure terminal event parity with v1 even on abrupt disconnects
+            
             if self.status == "completed" and not self._sent_done:
                 self.dispatch_event("done", {"status": self.status, "data": self.data, "id": self._job_id})
                 self._sent_done = True

@@ -151,7 +151,7 @@ def get_packagist_version(package_name: str) -> str:
     data = response.json()
     package_data = data.get("package", {})
     versions = package_data.get("versions", {})
-    # Filter out dev versions and find highest stable version
+    
     stable_versions = []
     for v in versions:
         normalized = v.lstrip("v")
@@ -200,52 +200,52 @@ if __name__ == "__main__":
     package_name = sys.argv[3]
 
     if package_type == "python":
-        # Get current version from __init__.py
+        
         current_version = get_python_version(os.path.join(package_path, '__init__.py'))
-        # Get published version from PyPI
+        
         published_version = get_pypi_version(package_name)
     elif package_type == "js":
-        # Get current version from package.json
+        
         current_version = get_js_version(os.path.join(package_path, 'package.json'))
-        # Get published version from npm
+        
         published_version = get_npm_version(package_name)
     elif package_type == "java":
-        # Get current version from build.gradle.kts
+        
         current_version = get_gradle_version(os.path.join(package_path, 'build.gradle.kts'))
-        # Get published version from Maven Central
+        
         published_version = get_maven_central_version(package_name)
     elif package_type == "ruby":
-        # Get current version from lib/firecrawl/version.rb
+        
         current_version = get_ruby_version(os.path.join(package_path, 'lib', 'firecrawl', 'version.rb'))
-        # Get published version from RubyGems
+        
         published_version = get_rubygems_version(package_name)
     elif package_type == "dotnet":
-        # Get current version from .csproj file — look for any .csproj in the directory
+        
         csproj_files = list(Path(package_path).glob('*.csproj'))
         if not csproj_files:
             raise RuntimeError(f"No .csproj file found in {package_path}")
         current_version = get_csproj_version(str(csproj_files[0]))
-        # Get published version from NuGet
+        
         published_version = get_nuget_version(package_name)
     elif package_type == "php":
-        # Get current version from src/Version.php
+        
         current_version = get_php_version(os.path.join(package_path, 'src', 'Version.php'))
-        # Get published version from Packagist
+        
         published_version = get_packagist_version(package_name)
     elif package_type == "rust":
-        # Get current version from Cargo.toml
+        
         current_version = get_rust_version(os.path.join(package_path, 'Cargo.toml'))
-        # Get published version from crates.io
+        
         published_version = get_crates_version(package_name)
 
     else:
         raise ValueError("Invalid package type. Use 'python', 'js', 'java', 'ruby', 'rust', 'dotnet', or 'php'.")
 
-    # Print versions for debugging
-    # print(f"Local version: {current_version}")
-    # print(f"Published version: {published_version}")
+    
+    
+    
 
-    # Compare versions and print result
+    
     if is_version_incremented(current_version, published_version):
         print("true")
     else:

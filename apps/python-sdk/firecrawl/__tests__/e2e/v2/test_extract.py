@@ -25,7 +25,7 @@ class TestExtractE2E:
 
         assert hasattr(resp, "success")
         assert resp.success is True or resp.success is False
-        # data may be None if backend omits; presence depends on implementation
+        
 
     def test_extract_with_schema(self):
         schema = {
@@ -46,10 +46,10 @@ class TestExtractE2E:
         )
 
         assert hasattr(resp, "success")
-        # if backend includes sources, ensure structure is a dict (do not fail if omitted)
+        
         if hasattr(resp, "sources") and resp.sources is not None:
             assert isinstance(resp.sources, dict)
 
-        # check if resp.data schema is equal to schema
+        
         assert isinstance(resp.data, dict)
         assert resp.data["title"] is not None

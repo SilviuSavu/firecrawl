@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from serpapi.google_search import GoogleSearch
 from openai import OpenAI
 
-# ANSI color codes
+
 class Colors:
     CYAN = '\033[96m'
     YELLOW = '\033[93m'
@@ -16,10 +16,10 @@ class Colors:
     BLUE = '\033[94m'
     RESET = '\033[0m'
 
-# Load environment variables
+
 load_dotenv()
 
-# Initialize clients
+
 openai_api_key = os.getenv("OPENAI_API_KEY")
 if not openai_api_key:
     print(f"{Colors.RED}Error: OPENAI_API_KEY not found in environment variables{Colors.RESET}")
@@ -41,7 +41,7 @@ def search_google(query, company):
         print(f"{Colors.RED}Cannot search Google: SERP_API_KEY is missing{Colors.RESET}")
         return []
     
-    # Create a more effective search query
+    
     search_query = f"{company} company {query}"
     
     params = {
@@ -51,7 +51,7 @@ def search_google(query, company):
         "google_domain": "google.com",
         "gl": "us",
         "hl": "en",
-        "num": 10  # Request more results
+        "num": 10  
     }
     
     try:
@@ -66,7 +66,7 @@ def search_google(query, company):
         
         if not organic_results:
             print(f"{Colors.YELLOW}No organic results found, trying alternative search...{Colors.RESET}")
-            # Try an alternative search
+            
             alt_params = params.copy()
             alt_params["q"] = company
             
@@ -90,7 +90,7 @@ def validate_official_source(url, company):
     company_name = company.lower().replace(" ", "")
     url_lower = url.lower()
     
-    # Special cases
+    
     if "ycombinator.com/companies/" in url_lower:
         return True
         
@@ -103,22 +103,22 @@ def validate_official_source(url, company):
     if "producthunt.com" in url_lower:
         return True
         
-    # Main domain check - more flexible approach
+    
     domain = url_lower.split("//")[1].split("/")[0] if "//" in url_lower else url_lower
     
-    # Company website usually has company name in domain
+    
     company_terms = company_name.split()
     for term in company_terms:
-        if len(term) > 3 and term in domain:  # Only match on significant terms
+        if len(term) > 3 and term in domain:  
             return True
     
-    # Common TLDs for tech companies
+    
     if ".com" in url_lower or ".org" in url_lower or ".net" in url_lower or ".dev" in url_lower or ".io" in url_lower or ".ai" in url_lower:
         domain_without_tld = domain.split(".")[0]
         if company_name.replace(" ", "") in domain_without_tld.replace("-", "").replace(".", ""):
             return True
     
-    # Explicitly non-official sources
+    
     non_official_patterns = [
         "linkedin.com", "facebook.com", "twitter.com", 
         "instagram.com", "medium.com", "bloomberg.com"
@@ -128,7 +128,7 @@ def validate_official_source(url, company):
         if pattern in url_lower:
             return False
     
-    # For any other domain that got through the filters, consider it potentially official
+    
     return True
 
 def select_urls_with_gpt(company, objective, serp_results):
@@ -201,8 +201,8 @@ def select_urls_with_gpt(company, objective, serp_results):
             for url in cleaned_urls:
                 print(f"- {url} {Colors.RESET}")
 
-            # Consider all selected URLs as valid sources
-            return cleaned_urls[:3]  # Limit to top 3
+            
+            return cleaned_urls[:3]  
 
         except Exception as e:
             print(f"{Colors.RED}Error calling OpenAI: {str(e)}{Colors.RESET}")
@@ -378,15 +378,15 @@ def consolidate_data(data, company):
                 data[key] = list(consolidated.values())
                 print(f"{Colors.GREEN}Consolidated '{key}': {len(value)} entries into {len(data[key])} unique entries{Colors.RESET}")
     
-    # Clean up output data - remove empty fields
+    
     for key, value in data.items():
         if isinstance(value, list):
             for item in value:
                 if isinstance(item, dict):
-                    # Remove empty string values
+                    
                     for field_key in list(item.keys()):
                         if item[field_key] == "":
-                            # For 'role' field, set default to "Founder" if empty
+                            
                             if field_key == 'role':
                                 item[field_key] = "Founder"
                             else:

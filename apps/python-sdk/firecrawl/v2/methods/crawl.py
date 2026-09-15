@@ -30,7 +30,7 @@ def _validate_crawl_request(request: CrawlRequest) -> None:
     if request.limit is not None and request.limit <= 0:
         raise ValueError("Limit must be positive")
     
-    # Validate scrape_options (if provided)
+    
     if request.scrape_options is not None:
         validate_scrape_options(request.scrape_options)
 
@@ -45,39 +45,39 @@ def _prepare_crawl_request(request: CrawlRequest) -> dict:
     Returns:
         Dictionary ready for API submission
     """
-    # Validate request
+    
     _validate_crawl_request(request)
     
-    # Start with basic data
+    
     data = {"url": request.url}
     
-    # Add prompt if present
+    
     if request.prompt:
         data["prompt"] = request.prompt
     
-    # Handle scrape_options conversion first (before model_dump)
+    
     if request.scrape_options is not None:
         scrape_data = prepare_scrape_options(request.scrape_options)
         if scrape_data:
             data["scrapeOptions"] = scrape_data
     
-    # Convert request to dict
+    
     request_data = request.model_dump(exclude_none=True, exclude_unset=True)
     
-    # Remove url, prompt, and scrape_options (already handled)
+    
     request_data.pop("url", None)
     request_data.pop("prompt", None)
     request_data.pop("scrape_options", None)
     
-    # Handle webhook conversion first (before model_dump)
+    
     if request.webhook is not None:
         if isinstance(request.webhook, str):
             data["webhook"] = request.webhook
         else:
-            # Convert WebhookConfig to dict
+            
             data["webhook"] = request.webhook.model_dump(exclude_none=True)
     
-    # Convert other snake_case fields to camelCase
+    
     field_mappings = {
         "include_paths": "includePaths",
         "exclude_paths": "excludePaths", 
@@ -96,14 +96,14 @@ def _prepare_crawl_request(request: CrawlRequest) -> dict:
         "zero_data_retention": "zeroDataRetention"
     }
     
-    # Apply field mappings
+    
     for snake_case, camel_case in field_mappings.items():
         if snake_case in request_data:
             data[camel_case] = request_data.pop(snake_case)
     
-    # Add any remaining fields that don't need conversion (like limit)
+    
     data.update(request_data)
-    # Trim integration if present
+    
     if "integration" in data and isinstance(data["integration"], str):
         data["integration"] = data["integration"].strip()
     
@@ -192,21 +192,21 @@ def get_crawl_status(
     Raises:
         Exception: If the status check fails
     """
-    # Make the API request
+    
     response = client.get(f"/v2/crawl/{job_id}", timeout=request_timeout)
 
-    # Handle errors
+    
     if not response.ok:
         handle_response_error(response, "get crawl status")
 
-    # Parse response
+    
     response_data = response.json()
 
     payload = _parse_crawl_status_response(response_data)
 
     documents = payload["data"]
 
-    # Handle pagination if requested
+    
     auto_paginate = pagination_config.auto_paginate if pagination_config else True
     if auto_paginate and payload["next"] and not (
         pagination_config
@@ -221,7 +221,7 @@ def get_crawl_status(
             request_timeout=request_timeout,
         )
 
-    # Create CrawlJob with current status and data
+    
     return CrawlJob(
         status=payload["status"],
         completed=payload["completed"],
@@ -297,7 +297,7 @@ def _fetch_all_pages(
     current_url = next_url
     page_count = 0
 
-    # Apply pagination limits
+    
     max_pages = pagination_config.max_pages if pagination_config else None
     max_results = pagination_config.max_results if pagination_config else None
     max_wait_time = pagination_config.max_wait_time if pagination_config else None
@@ -305,18 +305,18 @@ def _fetch_all_pages(
     start_time = time.monotonic()
 
     while current_url:
-        # Check pagination limits (treat 0 as a valid limit)
+        
         if (max_pages is not None) and page_count >= max_pages:
             break
 
         if (max_wait_time is not None) and (time.monotonic() - start_time) > max_wait_time:
             break
 
-        # Fetch next page
+        
         response = client.get(current_url, timeout=request_timeout)
 
         if not response.ok:
-            # Log error but continue with what we have
+            
             import logging
             logger = logging.getLogger("firecrawl")
             logger.warning("Failed to fetch next page", extra={"status_code": response.status_code})
@@ -329,18 +329,18 @@ def _fetch_all_pages(
         except Exception:
             break
 
-        # Add documents from this page
+        
         for document in page_payload["data"]:
-            # Check max_results limit BEFORE adding each document
+            
             if max_results is not None and len(documents) >= max_results:
                 break
             documents.append(document)
 
-        # Check if we hit max_results limit
+        
         if max_results is not None and len(documents) >= max_results:
             break
 
-        # Get next URL
+        
         current_url = page_payload["next"]
         page_count += 1
 
@@ -404,15 +404,15 @@ def wait_for_crawl_completion(
             request_timeout=request_timeout,
         )
         
-        # Check if job is complete
+        
         if crawl_job.status in ["completed", "failed", "cancelled"]:
             return crawl_job
         
-        # Check timeout
+        
         if timeout is not None and (time.monotonic() - start_time) > timeout:
             raise TimeoutError(f"Crawl job {job_id} did not complete within {timeout} seconds")
         
-        # Wait before next poll
+        
         time.sleep(poll_interval)
 
 
@@ -443,14 +443,14 @@ def crawl(
         Exception: If the crawl fails to start or complete
         TimeoutError: If timeout is reached
     """
-    # Start the crawl
+    
     crawl_job = start_crawl(client, request)
     job_id = crawl_job.id
     
-    # Determine the per-request timeout. If not provided, reuse the overall timeout value.
+    
     effective_request_timeout = request_timeout if request_timeout is not None else timeout
 
-    # Wait for completion
+    
     return wait_for_crawl_completion(
         client,
         job_id,
@@ -475,33 +475,33 @@ def crawl_params_preview(client: HttpClient, request: CrawlParamsRequest) -> Cra
         ValueError: If request is invalid
         Exception: If the operation fails
     """
-    # Validate request
+    
     if not request.url or not request.url.strip():
         raise ValueError("URL cannot be empty")
     
     if not request.prompt or not request.prompt.strip():
         raise ValueError("Prompt cannot be empty")
     
-    # Prepare request data
+    
     request_data = {
         "url": request.url,
         "prompt": request.prompt
     }
     
-    # Make the API request
+    
     response = client.post("/v2/crawl/params-preview", request_data)
     
-    # Handle errors
+    
     if not response.ok:
         handle_response_error(response, "crawl params preview")
     
-    # Parse response
+    
     response_data = response.json()
     
     if response_data.get("success"):
         params_data = response_data.get("data", {})
         
-        # Convert camelCase to snake_case for CrawlParamsData
+        
         converted_params = {}
         field_mappings = {
             "includePaths": "include_paths",
@@ -520,7 +520,7 @@ def crawl_params_preview(client: HttpClient, request: CrawlParamsRequest) -> Cra
             "zeroDataRetention": "zero_data_retention"
         }
         
-        # Handle webhook conversion
+        
         if "webhook" in params_data:
             webhook_data = params_data["webhook"]
             if isinstance(webhook_data, dict):
@@ -531,7 +531,7 @@ def crawl_params_preview(client: HttpClient, request: CrawlParamsRequest) -> Cra
         for camel_case, snake_case in field_mappings.items():
             if camel_case in params_data:
                 if camel_case == "scrapeOptions" and params_data[camel_case] is not None:
-                    # Handle nested scrapeOptions conversion
+                    
                     scrape_opts_data = params_data[camel_case]
                     converted_scrape_opts = {}
                     scrape_field_mappings = {
@@ -547,17 +547,17 @@ def crawl_params_preview(client: HttpClient, request: CrawlParamsRequest) -> Cra
                         if scrape_camel in scrape_opts_data:
                             converted_scrape_opts[scrape_snake] = scrape_opts_data[scrape_camel]
                     
-                    # Handle formats field - if it's a list, convert to ScrapeFormats
+                    
                     if "formats" in scrape_opts_data:
                         formats_data = scrape_opts_data["formats"]
                         if isinstance(formats_data, list):
-                            # Convert list to ScrapeFormats object
+                            
                             from ..types import ScrapeFormats
                             converted_scrape_opts["formats"] = ScrapeFormats(formats=formats_data)
                         else:
                             converted_scrape_opts["formats"] = formats_data
                     
-                    # Add fields that don't need conversion
+                    
                     for key, value in scrape_opts_data.items():
                         if key not in scrape_field_mappings and key != "formats":
                             converted_scrape_opts[key] = value
@@ -566,12 +566,12 @@ def crawl_params_preview(client: HttpClient, request: CrawlParamsRequest) -> Cra
                 else:
                     converted_params[snake_case] = params_data[camel_case]
         
-        # Add fields that don't need conversion
+        
         for key, value in params_data.items():
             if key not in field_mappings:
                 converted_params[key] = value
         
-        # Add warning if present
+        
         if "warning" in response_data:
             converted_params["warning"] = response_data["warning"]
         
@@ -602,7 +602,7 @@ def get_crawl_errors(http_client: HttpClient, crawl_id: str) -> CrawlErrorsRespo
     try:
         body = response.json()
         payload = body.get("data", body)
-        # Manual key normalization since we avoid Pydantic aliases
+        
         normalized = {
             "errors": payload.get("errors", []),
             "robots_blocked": payload.get("robotsBlocked", payload.get("robots_blocked", [])),

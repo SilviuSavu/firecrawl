@@ -11,38 +11,38 @@ from swarm.repl import run_demo_loop
 
 load_dotenv()
 
-# Initialize FirecrawlApp and OpenAI
+
 app = FirecrawlApp(api_key=os.getenv("FIRECRAWL_API_KEY"))
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def crawl_and_analyze_url(url, objective):
     """Crawl a website using Firecrawl and analyze the content."""
     print(f"Parameters: url={url}, objective={objective}")
-    # Crawl the website
+    
     crawl_status = app.crawl_url(
         url,
         params={'limit': 10, 'scrapeOptions': {'formats': ['markdown']}},
         poll_interval=5
     )
     crawl_status = crawl_status['data']
-    # Process each 'markdown' element individually
+    
     combined_results = []
     for item in crawl_status:
         if 'markdown' in item:
             content = item['markdown']
-            # Analyze the content
+            
             analysis = generate_completion(
                 "website data extractor",
                 f"Analyze the following website content and extract a JSON object based on the objective. Do not write the ```json and ``` to denote a JSON when returning a response",
                 "Objective: " + objective + "\nContent: " + content
             )
-            # Parse the JSON result
+            
             try:
                 result = json.loads(analysis)
                 combined_results.append(result)
             except json.JSONDecodeError:
                 print(f"Could not parse JSON from analysis: {analysis}")
-    # Combine the results
+    
     return {"objective": objective, "results": combined_results}
 
 def generate_completion(role, task, content):
@@ -74,5 +74,5 @@ crawl_website_agent = Agent(
 )
 
 if __name__ == "__main__":
-    # Run the demo loop with the user interface agent
+    
     run_demo_loop(user_interface_agent, stream=True)

@@ -52,7 +52,7 @@ def normalize_schema_for_openai(schema: Any) -> Any:
 
         normalized = dict(obj)
 
-        # Handle $ref recursion
+        
         if "$ref" in normalized:
             visited.discard(obj_id)
             return normalized
@@ -338,30 +338,30 @@ def _normalize_schema(schema: Any) -> Optional[Dict[str, Any]]:
     or a Pydantic model instance into a plain dict.
     """
     try:
-        # Pydantic v2 BaseModel subclass: has "model_json_schema"
+        
         if hasattr(schema, "model_json_schema") and callable(schema.model_json_schema):
             return schema.model_json_schema()
-        # Pydantic v2 BaseModel instance: has "model_dump" or "model_json_schema"
+        
         if hasattr(schema, "model_dump") and callable(schema.model_dump):
-            # Try to get JSON schema if available on the class
+            
             mjs = getattr(schema.__class__, "model_json_schema", None)
             if callable(mjs):
                 return schema.__class__.model_json_schema()
-            # Fallback to data shape (not ideal, but better than dropping)
+            
             return schema.model_dump()
-        # Pydantic v1 BaseModel subclass: has "schema"
+        
         if hasattr(schema, "schema") and callable(schema.schema):
             return schema.schema()
-        # Pydantic v1 BaseModel instance
+        
         if hasattr(schema, "dict") and callable(schema.dict):
-            # Prefer class-level schema if present
+            
             sch = getattr(schema.__class__, "schema", None)
             if callable(sch):
                 return schema.__class__.schema()
             return schema.dict()
     except Exception:
         pass
-    # Already a dict or unsupported type
+    
     return schema if isinstance(schema, dict) else None
 
 
@@ -384,14 +384,14 @@ def _validate_json_format(format_obj: Any) -> Dict[str, Any]:
     if format_obj.get('type') != 'json':
         raise ValueError("json format must have type='json'")
     
-    # prompt is optional in v2; only normalize when present
-    # schema is recommended; if provided, normalize Pydantic forms
+    
+    
     schema = format_obj.get('schema')
     normalized = dict(format_obj)
     if schema is not None:
         normalized_schema = _normalize_schema(schema)
         if normalized_schema is not None:
-            # Handle schema reference resolution similar to TypeScript implementation
+            
             if isinstance(normalized_schema, dict):
                 defs = normalized_schema.get("$defs", {})
                 import json
@@ -410,15 +410,15 @@ def _validate_json_format(format_obj: Any) -> Dict[str, Any]:
                         
                         if not has_remaining_refs:
                             normalized_schema = resolved_schema
-                            # Remove $defs after successful resolution
+                            
                             if isinstance(normalized_schema, dict) and "$defs" in normalized_schema:
                                 del normalized_schema["$defs"]
-                        # If refs remain, preserve original schema
+                        
                     except Exception:
-                        # Failed to resolve refs, preserve original schema
+                        
                         pass
                 else:
-                    # No recursive references detected, resolve refs anyway
+                    
                     try:
                         normalized_schema = resolve_refs(normalized_schema, defs)
                         if isinstance(normalized_schema, dict) and "$defs" in normalized_schema:
@@ -426,7 +426,7 @@ def _validate_json_format(format_obj: Any) -> Dict[str, Any]:
                     except Exception:
                         pass
             
-            # Apply OpenAI normalization and validation
+            
             openai_normalized_schema = normalize_schema_for_openai(normalized_schema)
             if not validate_schema_for_openai(openai_normalized_schema):
                 raise ValueError(OPENAI_SCHEMA_ERROR_MESSAGE)
@@ -502,11 +502,11 @@ def validate_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Scrape
     if options is None:
         return None
     
-    # Validate timeout
+    
     if options.timeout is not None and options.timeout <= 0:
         raise ValueError("Timeout must be positive")
     
-    # Validate wait_for
+    
     if options.wait_for is not None and options.wait_for < 0:
         raise ValueError("wait_for must be non-negative")
     
@@ -526,12 +526,12 @@ def prepare_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Dict[st
     if options is None:
         return None
     
-    # Validate options first
+    
     validated_options = validate_scrape_options(options)
     if validated_options is None:
         return None
     
-    # Apply default values for None fields
+    
     default_values = {
         "only_main_content": True,
         "mobile": False,
@@ -543,17 +543,17 @@ def prepare_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Dict[st
         "store_in_cache": True
     }
     
-    # Convert to dict and handle manual snake_case to camelCase conversion
+    
     options_data = validated_options.model_dump(exclude_none=True)
     
-    # Apply defaults for None fields
+    
     for field, default_value in default_values.items():
         if field not in options_data:
             options_data[field] = default_value
     
     scrape_data = {}
     
-    # Manual field mapping for snake_case to camelCase conversion
+    
     field_mappings = {
         "include_tags": "includeTags",
         "exclude_tags": "excludeTags",
@@ -570,21 +570,21 @@ def prepare_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Dict[st
         "threat_protection": "threatProtection",
     }
     
-    # Apply field mappings
+    
     for snake_case, camel_case in field_mappings.items():
         if snake_case in options_data:
             scrape_data[camel_case] = options_data.pop(snake_case)
 
-    # redactPII may be a nested object whose inner `replace_style` field
-    # also needs camel-casing.
+    
+    
     if isinstance(scrape_data.get("redactPII"), dict):
         if "replace_style" in scrape_data["redactPII"]:
             scrape_data["redactPII"]["replaceStyle"] = scrape_data["redactPII"].pop(
                 "replace_style"
             )
 
-    # threatProtection is a nested object whose inner fields also need
-    # camel-casing.
+    
+    
     if isinstance(scrape_data.get("threatProtection"), dict):
         threat_data = scrape_data["threatProtection"]
         for snake_case, camel_case in (
@@ -595,21 +595,21 @@ def prepare_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Dict[st
             if snake_case in threat_data:
                 threat_data[camel_case] = threat_data.pop(snake_case)
     
-    # Handle special cases
+    
     for key, value in options_data.items():
         if value is not None:
             if key == "integration":
                 scrape_data["integration"] = (str(value).strip() or None)
                 continue
             if key == "formats":
-                # Handle formats conversion
+                
                 converted_formats: List[Any] = []
 
-                # Prefer using original object to detect ScrapeFormats vs list
+                
                 original_formats = getattr(options, 'formats', None)
 
                 if isinstance(original_formats, ScrapeFormats):
-                    # Include explicit list first
+                    
                     if original_formats.formats:
                         for fmt in original_formats.formats:
                             if isinstance(fmt, str):
@@ -634,11 +634,11 @@ def prepare_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Dict[st
                                 elif fmt_type == 'query':
                                     converted_formats.append(_validate_query_format(fmt))
                                 elif fmt_type == 'screenshot':
-                                    # Normalize screenshot options
+                                    
                                     normalized = {**fmt, 'type': 'screenshot'}
                                     if 'full_page' in normalized:
                                         normalized['fullPage'] = normalized.pop('full_page')
-                                    # Normalize viewport if it's a model instance
+                                    
                                     vp = normalized.get('viewport')
                                     if hasattr(vp, 'model_dump'):
                                         normalized['viewport'] = vp.model_dump(exclude_none=True)
@@ -665,7 +665,7 @@ def prepare_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Dict[st
                             else:
                                 converted_formats.append(fmt)
 
-                    # Add booleans from ScrapeFormats
+                    
                     if original_formats.markdown:
                         converted_formats.append("markdown")
                     if original_formats.html:
@@ -680,9 +680,9 @@ def prepare_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Dict[st
                         converted_formats.append("screenshot")
                     if original_formats.change_tracking:
                         converted_formats.append("changeTracking")
-                    # Note: We intentionally do not auto-include 'json' when boolean is set,
-                    # because JSON requires an object with schema/prompt. The caller must
-                    # supply the full json format object explicitly.
+                    
+                    
+                    
                 elif isinstance(original_formats, list):
                     for fmt in original_formats:
                         if isinstance(fmt, str):
@@ -746,7 +746,7 @@ def prepare_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Dict[st
                         else:
                             converted_formats.append(fmt)
                 else:
-                    # Fallback: try to iterate over value if it's a list-like
+                    
                     try:
                         for fmt in value:
                             converted_formats.append(fmt)
@@ -756,11 +756,11 @@ def prepare_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Dict[st
                 if converted_formats:
                     scrape_data["formats"] = converted_formats
             elif key == "actions":
-                # Handle actions conversion
+                
                 converted_actions = []
                 for action in value:
                     if isinstance(action, dict):
-                        # Convert action dict
+                        
                         converted_action = {}
                         for action_key, action_value in action.items():
                             if action_key == "full_page":
@@ -769,7 +769,7 @@ def prepare_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Dict[st
                                 converted_action[action_key] = action_value
                         converted_actions.append(converted_action)
                     else:
-                        # Handle action objects
+                        
                         action_data = action.model_dump(exclude_none=True)
                         converted_action = {}
                         for action_key, action_value in action_data.items():
@@ -791,7 +791,7 @@ def prepare_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Dict[st
                         converted_parsers.append(parser_data)
                     else:
                         parser_data = parser.model_dump(exclude_none=True)
-                        # Convert snake_case to camelCase for API
+                        
                         if "max_pages" in parser_data:
                             parser_data["maxPages"] = parser_data.pop("max_pages")
                         converted_parsers.append(parser_data)
@@ -814,7 +814,7 @@ def prepare_scrape_options(options: Optional[ScrapeOptions]) -> Optional[Dict[st
                     }
                 scrape_data["profile"] = profile_data
             else:
-                # For fields that don't need conversion, use as-is
+                
                 scrape_data[key] = value
     
     return scrape_data  

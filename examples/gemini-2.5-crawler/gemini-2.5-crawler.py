@@ -6,20 +6,20 @@ import requests
 from requests.exceptions import RequestException
 from dotenv import load_dotenv
 import google.genai as genai
-# Load environment variables
+
 load_dotenv()
 
-# Retrieve API keys from environment variables
+
 firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
 gemini_api_key = os.getenv("GEMINI_API_KEY")
 
-# Initialize the FirecrawlApp and Gemini client
+
 app = FirecrawlApp(api_key=firecrawl_api_key)
-client = genai.Client(api_key=gemini_api_key)  # Create Gemini client
+client = genai.Client(api_key=gemini_api_key)  
 model_name = "gemini-2.5-pro-exp-03-25"
 types = genai.types
 
-# ANSI color codes
+
 
 
 class Colors:
@@ -78,7 +78,7 @@ def gemini_extract_image_data(image_url):
     try:
         print(f"Gemini IMAGE extraction from: {image_url}")
         image_data = requests.get(image_url, timeout=15).content
-        # 1) Summarize
+        
         resp_summary = client.models.generate_content([
             "Describe the contents of this image in a short paragraph.",
             types.Part.from_bytes(data=image_data, mime_type="image/jpeg"),
@@ -98,7 +98,7 @@ def extract_urls_from_markdown(markdown_text):
     """
     pattern = r'(https?://[^\s\'")]+)'
     found = re.findall(pattern, markdown_text)
-    return list(set(found))  # unique them
+    return list(set(found))  
 
 
 def detect_mime_type(url, timeout=8):
@@ -267,7 +267,7 @@ def find_objective_in_top_pages(map_website, objective, app):
             print(
                 f"{Colors.GREEN}Page scraping completed successfully.{Colors.RESET}")
 
-            # Now detect any PDF or image URLs in the Markdown text
+            
             page_markdown = scrape_result.get('markdown', '')
             if not page_markdown:
                 print(
@@ -292,7 +292,7 @@ def find_objective_in_top_pages(map_website, objective, app):
                     if image_content:
                         pdf_image_append += f"\n\n---\n[Image from {sub_url}]:\n{image_content}"
 
-            # Append extracted PDF/image text to the main markdown for the page
+            
             if pdf_image_append:
                 scrape_result[
                     'markdown'] += f"\n\n---\n**Additional Gemini Extraction:**\n{pdf_image_append}\n"

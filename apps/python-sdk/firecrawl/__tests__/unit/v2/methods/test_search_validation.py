@@ -18,63 +18,63 @@ class TestSearchValidation:
 
     def test_validate_invalid_limit(self):
         """Test validation of invalid limits."""
-        # Zero limit
+        
         request = SearchRequest(query="test", limit=0)
         with pytest.raises(ValueError, match="Limit must be positive"):
             _validate_search_request(request)
 
-        # Negative limit
+        
         request = SearchRequest(query="test", limit=-1)
         with pytest.raises(ValueError, match="Limit must be positive"):
             _validate_search_request(request)
 
-        # Too high limit
+        
         request = SearchRequest(query="test", limit=101)
         with pytest.raises(ValueError, match="Limit cannot exceed 100"):
             _validate_search_request(request)
 
     def test_validate_invalid_timeout(self):
         """Test validation of invalid timeouts."""
-        # Zero timeout
+        
         request = SearchRequest(query="test", timeout=0)
         with pytest.raises(ValueError, match="Timeout must be positive"):
             _validate_search_request(request)
 
-        # Negative timeout
+        
         request = SearchRequest(query="test", timeout=-1000)
         with pytest.raises(ValueError, match="Timeout must be positive"):
             _validate_search_request(request)
 
-        # Too high timeout
+        
         request = SearchRequest(query="test", timeout=300001)
         with pytest.raises(ValueError, match="Timeout cannot exceed 300000ms"):
             _validate_search_request(request)
 
     def test_validate_invalid_sources(self):
         """Test validation of invalid sources."""
-        # Invalid string source
+        
         request = SearchRequest(query="test", sources=["invalid_source"])
         with pytest.raises(ValueError, match="Invalid source type"):
             _validate_search_request(request)
 
-        # Invalid object source
+        
         request = SearchRequest(query="test", sources=[Source(type="invalid_source")])
         with pytest.raises(ValueError, match="Invalid source type"):
             _validate_search_request(request)
 
-        # Mixed valid/invalid sources
+        
         request = SearchRequest(query="test", sources=["web", "invalid_source"])
         with pytest.raises(ValueError, match="Invalid source type"):
             _validate_search_request(request)
 
     def test_validate_invalid_location(self):
         """Test validation of invalid location."""
-        # Empty location
+        
         request = SearchRequest(query="test", location="")
         with pytest.raises(ValueError, match="Location must be a non-empty string"):
             _validate_search_request(request)
 
-        # Whitespace location
+        
         request = SearchRequest(query="test", location="   ")
         with pytest.raises(ValueError, match="Location must be a non-empty string"):
             _validate_search_request(request)
@@ -104,12 +104,12 @@ class TestSearchValidation:
 
     def test_validate_valid_requests(self):
         """Test that valid requests pass validation."""
-        # Minimal valid request
+        
         request = SearchRequest(query="test")
         validated = _validate_search_request(request)
         assert validated == request
 
-        # Request with all optional parameters
+        
         request = SearchRequest(
             query="test query",
             sources=["web", "news"],
@@ -122,7 +122,7 @@ class TestSearchValidation:
         validated = _validate_search_request(request)
         assert validated == request
 
-        # Request with object sources
+        
         request = SearchRequest(
             query="test",
             sources=[Source(type="web"), Source(type="images")]
@@ -132,22 +132,22 @@ class TestSearchValidation:
 
     def test_validate_edge_cases(self):
         """Test edge cases and boundary values."""
-        # Maximum valid limit
+        
         request = SearchRequest(query="test", limit=100)
         validated = _validate_search_request(request)
         assert validated == request
 
-        # Maximum valid timeout
+        
         request = SearchRequest(query="test", timeout=300000)
         validated = _validate_search_request(request)
         assert validated == request
 
-        # Minimum valid limit
+        
         request = SearchRequest(query="test", limit=1)
         validated = _validate_search_request(request)
         assert validated == request
 
-        # Minimum valid timeout
+        
         request = SearchRequest(query="test", timeout=1)
         validated = _validate_search_request(request)
         assert validated == request
@@ -168,13 +168,13 @@ class TestSearchValidation:
 
     def test_validate_scrape_options_integration(self):
         """Test that scrape_options validation is integrated."""
-        # Test with valid scrape options
+        
         scrape_opts = ScrapeOptions(formats=["markdown"], timeout=30000)
         request = SearchRequest(query="test", scrape_options=scrape_opts)
         validated = _validate_search_request(request)
         assert validated == request
 
-        # Test with invalid scrape options (should raise error)
+        
         invalid_scrape_opts = ScrapeOptions(timeout=-1000)
         request = SearchRequest(query="test", scrape_options=invalid_scrape_opts)
         with pytest.raises(ValueError, match="Timeout must be positive"):
@@ -191,7 +191,7 @@ class TestSearchRequestModel:
         """Test that default values are set correctly."""
         request = SearchRequest(query="test")
         assert request.limit == 5
-        assert request.ignore_invalid_urls is None  # No default in model
+        assert request.ignore_invalid_urls is None  
         assert request.timeout == 300000
         assert request.sources is None
         assert request.tbs is None
@@ -200,21 +200,21 @@ class TestSearchRequestModel:
 
     def test_field_aliases(self):
         """Test that field aliases work correctly for API serialization."""
-        # Test with None value (no default)
+        
         request1 = SearchRequest(query="test")
         data1 = request1.model_dump(by_alias=True)
-        assert "ignore_invalid_urls" in data1  # No alias, uses snake_case
+        assert "ignore_invalid_urls" in data1  
         assert data1["ignore_invalid_urls"] is None
 
-        # Test with explicit False value
+        
         request2 = SearchRequest(
             query="test",
             ignore_invalid_urls=False,
             scrape_options=ScrapeOptions(formats=["markdown"])
         )
 
-        # Check that aliases are used in model_dump with by_alias=True
+        
         data2 = request2.model_dump(by_alias=True)
-        assert "ignore_invalid_urls" in data2  # No alias, uses snake_case
-        assert "scrape_options" in data2  # No alias, uses snake_case
+        assert "ignore_invalid_urls" in data2  
+        assert "scrape_options" in data2  
         assert data2["ignore_invalid_urls"] is False

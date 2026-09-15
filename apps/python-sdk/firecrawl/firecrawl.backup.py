@@ -43,40 +43,40 @@ logger : logging.Logger = logging.getLogger("firecrawl")
 
 T = TypeVar('T')
 
-# class FirecrawlDocumentMetadata(pydantic.BaseModel):
-#     """Metadata for a Firecrawl document."""
-#     title: Optional[str] = None
-#     description: Optional[str] = None
-#     language: Optional[str] = None
-#     keywords: Optional[str] = None
-#     robots: Optional[str] = None
-#     ogTitle: Optional[str] = None
-#     ogDescription: Optional[str] = None
-#     ogUrl: Optional[str] = None
-#     ogImage: Optional[str] = None
-#     ogAudio: Optional[str] = None
-#     ogDeterminer: Optional[str] = None
-#     ogLocale: Optional[str] = None
-#     ogLocaleAlternate: Optional[List[str]] = None
-#     ogSiteName: Optional[str] = None
-#     ogVideo: Optional[str] = None
-#     dctermsCreated: Optional[str] = None
-#     dcDateCreated: Optional[str] = None
-#     dcDate: Optional[str] = None
-#     dctermsType: Optional[str] = None
-#     dcType: Optional[str] = None
-#     dctermsAudience: Optional[str] = None
-#     dctermsSubject: Optional[str] = None
-#     dcSubject: Optional[str] = None
-#     dcDescription: Optional[str] = None
-#     dctermsKeywords: Optional[str] = None
-#     modifiedTime: Optional[str] = None
-#     publishedTime: Optional[str] = None
-#     articleTag: Optional[str] = None
-#     articleSection: Optional[str] = None
-#     sourceURL: Optional[str] = None
-#     statusCode: Optional[int] = None
-#     error: Optional[str] = None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 class AgentOptions(pydantic.BaseModel):
     """Configuration for the agent."""
@@ -97,8 +97,8 @@ class ChangeTrackingData(pydantic.BaseModel):
     Data for the change tracking format.
     """
     previousScrapeAt: Optional[str] = None
-    changeStatus: str  # "new" | "same" | "changed" | "removed"
-    visibility: str  # "visible" | "hidden"
+    changeStatus: str  
+    visibility: str  
     diff: Optional[Dict[str, Any]] = None
     json_field: Optional[Any] = pydantic.Field(None, alias='json')
 
@@ -114,8 +114,8 @@ class FirecrawlDocument(pydantic.BaseModel, Generic[T]):
     screenshot: Optional[str] = None
     metadata: Optional[Any] = None
     actions: Optional[ActionsResult] = None
-    title: Optional[str] = None  # v1 search only
-    description: Optional[str] = None  # v1 search only
+    title: Optional[str] = None  
+    description: Optional[str] = None  
     changeTracking: Optional[ChangeTrackingData] = None
 
 class LocationConfig(pydantic.BaseModel):
@@ -266,7 +266,7 @@ class CrawlParams(pydantic.BaseModel):
     deduplicateSimilarURLs: Optional[bool] = None
     ignoreQueryParameters: Optional[bool] = None
     regexOnFullURL: Optional[bool] = None
-    delay: Optional[int] = None  # Delay in seconds between scrapes
+    delay: Optional[int] = None  
     maxConcurrency: Optional[int] = None
     allowSubdomains: Optional[bool] = None
 
@@ -290,7 +290,7 @@ class CrawlStatusResponse(pydantic.BaseModel):
 
 class CrawlErrorsResponse(pydantic.BaseModel):
     """Response from crawl/batch scrape error monitoring."""
-    errors: List[Dict[str, str]]  # {id: str, timestamp: str, url: str, error: str}
+    errors: List[Dict[str, str]]  
     robotsBlocked: List[str]
 
 class MapParams(pydantic.BaseModel):
@@ -430,7 +430,7 @@ class ExtractParams(pydantic.BaseModel):
     system_prompt: Optional[str] = None
     allow_external_links: Optional[bool] = False
     enable_web_search: Optional[bool] = False
-    # Just for backwards compatibility
+    
     enableWebSearch: Optional[bool] = False
     show_sources: Optional[bool] = False
     agent: Optional[Dict[str, Any]] = None
@@ -447,7 +447,7 @@ class FirecrawlApp:
         self.api_key = api_key or os.getenv('FIRECRAWL_API_KEY')
         self.api_url = api_url or os.getenv('FIRECRAWL_API_URL', 'https://api.firecrawl.dev')
         
-        # Only require API key when using cloud service
+        
         if 'api.firecrawl.dev' in self.api_url and self.api_key is None:
             logger.warning("No API key provided for cloud service")
             raise ValueError('No API key provided')
@@ -517,18 +517,18 @@ class FirecrawlApp:
         Raises:
           Exception: If scraping fails
         """
-        # Validate any additional kwargs
+        
         self._validate_kwargs(kwargs, "scrape_url")
         
         _headers = self._prepare_headers()
 
-        # Build scrape parameters
+        
         scrape_params = {
             'url': url,
             'origin': f"python-sdk@{version}"
         }
 
-        # Add optional parameters if provided
+        
         if formats:
             scrape_params['formats'] = formats
         if headers:
@@ -587,7 +587,7 @@ class FirecrawlApp:
         if 'jsonOptions' in scrape_params and scrape_params['jsonOptions'] and 'schema' in scrape_params['jsonOptions']:
             scrape_params['jsonOptions']['schema'] = self._ensure_schema_dict(scrape_params['jsonOptions']['schema'])
 
-        # Make request
+        
         response = requests.post(
             f'{self.api_url}/v1/scrape',
             headers=_headers,
@@ -647,13 +647,13 @@ class FirecrawlApp:
         Raises:
             Exception: If search fails or response cannot be parsed
         """
-        # Validate any additional kwargs
+        
         self._validate_kwargs(kwargs, "search")
 
-        # Build search parameters
+        
         search_params = {}
 
-        # Add individual parameters
+        
         if limit is not None:
             search_params['limit'] = limit
         if tbs is not None:
@@ -671,11 +671,11 @@ class FirecrawlApp:
         if scrape_options is not None:
             search_params['scrapeOptions'] = scrape_options.dict(by_alias=True, exclude_none=True)
         
-        # Add any additional kwargs
+        
         search_params.update(kwargs)
         _integration = search_params.get('integration')
 
-        # Create final params object
+        
         final_params = SearchParams(query=query, **search_params)
         params_dict = final_params.dict(by_alias=True, exclude_none=True)
         params_dict['origin'] = f"python-sdk@{version}"
@@ -683,7 +683,7 @@ class FirecrawlApp:
         if _integration:
             params_dict['integration'] = _integration
 
-        # Make request
+        
         response = requests.post(
             f"{self.api_url}/v1/search",
             headers={"Authorization": f"Bearer {self.api_key}"},
@@ -766,12 +766,12 @@ class FirecrawlApp:
         Raises:
             Exception: If crawl fails
         """
-        # Validate any additional kwargs
+        
         self._validate_kwargs(kwargs, "crawl_url")
 
         crawl_params = {}
 
-        # Add individual parameters
+        
         if include_paths is not None:
             crawl_params['includePaths'] = include_paths
         if exclude_paths is not None:
@@ -808,11 +808,11 @@ class FirecrawlApp:
             crawl_params['maxConcurrency'] = max_concurrency
         if zero_data_retention is not None:
             crawl_params['zeroDataRetention'] = zero_data_retention
-        # Add any additional kwargs
+        
         crawl_params.update(kwargs)
         _integration = crawl_params.get('integration')
 
-        # Create final params object
+        
         final_params = CrawlParams(**crawl_params)
         params_dict = final_params.dict(by_alias=True, exclude_none=True)
         params_dict['url'] = url
@@ -821,7 +821,7 @@ class FirecrawlApp:
         if _integration:
             params_dict['integration'] = _integration
 
-        # Make request
+        
         headers = self._prepare_headers(idempotency_key)
         response = self._post_request(f'{self.api_url}/v1/crawl', params_dict, headers)
 
@@ -895,12 +895,12 @@ class FirecrawlApp:
         Raises:
             Exception: If crawl initiation fails
         """
-        # Validate any additional kwargs
+        
         self._validate_kwargs(kwargs, "async_crawl_url")
 
         crawl_params = {}
 
-        # Add individual parameters
+        
         if include_paths is not None:
             crawl_params['includePaths'] = include_paths
         if exclude_paths is not None:
@@ -937,16 +937,16 @@ class FirecrawlApp:
             crawl_params['maxConcurrency'] = max_concurrency
         if zero_data_retention is not None:
             crawl_params['zeroDataRetention'] = zero_data_retention
-        # Add any additional kwargs
+        
         crawl_params.update(kwargs)
 
-        # Create final params object
+        
         final_params = CrawlParams(**crawl_params)
         params_dict = final_params.dict(by_alias=True, exclude_none=True)
         params_dict['url'] = url
         params_dict['origin'] = f"python-sdk@{version}"
 
-        # Make request
+        
         headers = self._prepare_headers(idempotency_key)
         response = self._post_request(f'{self.api_url}/v1/crawl', params_dict, headers)
 
@@ -1214,13 +1214,13 @@ class FirecrawlApp:
         Raises:
             Exception: If mapping fails or response cannot be parsed
         """
-        # Validate any additional kwargs
+        
         self._validate_kwargs(kwargs, "map_url")
 
-        # Build map parameters
+        
         map_params = {}
 
-        # Add individual parameters
+        
         if search is not None:
             map_params['search'] = search
         if ignore_sitemap is not None:
@@ -1236,11 +1236,11 @@ class FirecrawlApp:
         if use_index is not None:
             map_params['useIndex'] = use_index
         
-        # Add any additional kwargs
+        
         map_params.update(kwargs)
         _integration = map_params.get('integration')
 
-        # Create final params object
+        
         final_params = MapParams(**map_params)
         params_dict = final_params.dict(by_alias=True, exclude_none=True)
         params_dict['url'] = url
@@ -1249,7 +1249,7 @@ class FirecrawlApp:
         if _integration:
             params_dict['integration'] = _integration
 
-        # Make request
+        
         response = requests.post(
             f"{self.api_url}/v1/map",
             headers={"Authorization": f"Bearer {self.api_key}"},
@@ -1333,12 +1333,12 @@ class FirecrawlApp:
         Raises:
             Exception: If batch scrape fails
         """
-        # Validate any additional kwargs
+        
         self._validate_kwargs(kwargs, "batch_scrape_urls")
 
         scrape_params = {}
 
-        # Add individual parameters
+        
         if formats is not None:
             scrape_params['formats'] = formats
         if headers is not None:
@@ -1384,10 +1384,10 @@ class FirecrawlApp:
         if zero_data_retention is not None:
             scrape_params['zeroDataRetention'] = zero_data_retention
         
-        # Add any additional kwargs
+        
         scrape_params.update(kwargs)
 
-        # Create final params object
+        
         final_params = ScrapeParams(**scrape_params)
         params_dict = final_params.dict(by_alias=True, exclude_none=True)
         params_dict['urls'] = urls
@@ -1398,7 +1398,7 @@ class FirecrawlApp:
         if 'jsonOptions' in params_dict and params_dict['jsonOptions'] and 'schema' in params_dict['jsonOptions']:
             params_dict['jsonOptions']['schema'] = self._ensure_schema_dict(params_dict['jsonOptions']['schema'])
 
-        # Make request
+        
         headers = self._prepare_headers(idempotency_key)
         response = self._post_request(f'{self.api_url}/v1/batch/scrape', params_dict, headers)
 
@@ -1474,12 +1474,12 @@ class FirecrawlApp:
         Raises:
             Exception: If job initiation fails
         """
-        # Validate any additional kwargs
+        
         self._validate_kwargs(kwargs, "async_batch_scrape_urls")
 
         scrape_params = {}
 
-        # Add individual parameters
+        
         if formats is not None:
             scrape_params['formats'] = formats
         if headers is not None:
@@ -1525,10 +1525,10 @@ class FirecrawlApp:
         if zero_data_retention is not None:
             scrape_params['zeroDataRetention'] = zero_data_retention
         
-        # Add any additional kwargs
+        
         scrape_params.update(kwargs)
 
-        # Create final params object
+        
         final_params = ScrapeParams(**scrape_params)
         params_dict = final_params.dict(by_alias=True, exclude_none=True)
         params_dict['urls'] = urls
@@ -1539,7 +1539,7 @@ class FirecrawlApp:
         if 'jsonOptions' in params_dict and params_dict['jsonOptions'] and 'schema' in params_dict['jsonOptions']:
             params_dict['jsonOptions']['schema'] = self._ensure_schema_dict(params_dict['jsonOptions']['schema'])
 
-        # Make request
+        
         headers = self._prepare_headers(idempotency_key)
         response = self._post_request(f'{self.api_url}/v1/batch/scrape', params_dict, headers)
 
@@ -1610,12 +1610,12 @@ class FirecrawlApp:
         Raises:
             Exception: If batch scrape job fails to start
         """
-        # Validate any additional kwargs
+        
         self._validate_kwargs(kwargs, "batch_scrape_urls_and_watch")
 
         scrape_params = {}
 
-        # Add individual parameters
+        
         if formats is not None:
             scrape_params['formats'] = formats
         if headers is not None:
@@ -1661,10 +1661,10 @@ class FirecrawlApp:
         if zero_data_retention is not None:
             scrape_params['zeroDataRetention'] = zero_data_retention
         
-        # Add any additional kwargs
+        
         scrape_params.update(kwargs)
 
-        # Create final params object
+        
         final_params = ScrapeParams(**scrape_params)
         params_dict = final_params.dict(by_alias=True, exclude_none=True)
         params_dict['urls'] = urls
@@ -1675,7 +1675,7 @@ class FirecrawlApp:
         if 'jsonOptions' in params_dict and params_dict['jsonOptions'] and 'schema' in params_dict['jsonOptions']:
             params_dict['jsonOptions']['schema'] = self._ensure_schema_dict(params_dict['jsonOptions']['schema'])
 
-        # Make request
+        
         headers = self._prepare_headers(idempotency_key)
         response = self._post_request(f'{self.api_url}/v1/batch/scrape', params_dict, headers)
 
@@ -1817,7 +1817,7 @@ class FirecrawlApp:
         Raises:
             ValueError: If prompt/schema missing or extraction fails
         """
-        # Validate any additional kwargs
+        
         self._validate_kwargs(kwargs, "extract")
         
         headers = self._prepare_headers()
@@ -1840,7 +1840,7 @@ class FirecrawlApp:
             'origin': f'python-sdk@{get_version()}'
         }
 
-        # Only add prompt and systemPrompt if they exist
+        
         if prompt:
             request_data['prompt'] = prompt
         if system_prompt:
@@ -1849,11 +1849,11 @@ class FirecrawlApp:
         if agent:
             request_data['agent'] = agent
 
-        # Add any additional kwargs
+        
         request_data.update(kwargs)
 
         try:
-            # Send the initial extract request
+            
             response = self._post_request(
                 f'{self.api_url}/v1/extract',
                 request_data,
@@ -1869,7 +1869,7 @@ class FirecrawlApp:
                     if not job_id:
                         raise Exception('Job ID not returned from extract request.')
 
-                    # Poll for the extract status
+                    
                     while True:
                         status_response = self._get_request(
                             f'{self.api_url}/v1/extract/{job_id}',
@@ -1887,7 +1887,7 @@ class FirecrawlApp:
                         else:
                             self._handle_error(status_response, "extract-status")
 
-                        time.sleep(2)  # Polling interval
+                        time.sleep(2)  
                 else:
                     raise Exception(f'Failed to extract. Error: {data["error"]}')
             else:
@@ -2058,7 +2058,7 @@ class FirecrawlApp:
                     expiresAt=''
                 )
 
-            time.sleep(2)  # Polling interval
+            time.sleep(2)  
 
     def async_generate_llms_text(
             self,
@@ -2315,7 +2315,7 @@ class FirecrawlApp:
                         raise Exception('Crawl job completed but no data was returned')
                 elif status_data['status'] in ['active', 'paused', 'pending', 'queued', 'waiting', 'scraping']:
                     poll_interval=max(poll_interval,2)
-                    time.sleep(poll_interval)  # Wait for the specified interval before checking again
+                    time.sleep(poll_interval)  
                 else:
                     raise Exception(f'Crawl job failed or was stopped. Status: {status_data["status"]}')
             else:
@@ -2340,9 +2340,9 @@ class FirecrawlApp:
             error_message = response_json.get('error', 'No error message provided.')
             error_details = response_json.get('details', 'No additional error details provided.')
         except:
-            # If we can't parse JSON, provide a helpful error message with response content
+            
             try:
-                response_text = response.text[:500]  # Limit to first 500 chars
+                response_text = response.text[:500]  
                 if response_text.strip():
                     error_message = f"Server returned non-JSON response: {response_text}"
                     error_details = f"Full response status: {response.status_code}"
@@ -2355,7 +2355,7 @@ class FirecrawlApp:
         
         message = self._get_error_message(response.status_code, action, error_message, error_details)
 
-        # Raise an HTTPError with the custom message and attach the response
+        
         raise requests.exceptions.HTTPError(message, response=response)
 
     def _get_error_message(self, status_code: int, action: str, error_message: str, error_details: str) -> str:
@@ -2476,7 +2476,7 @@ class FirecrawlApp:
             elif status['status'] != 'processing':
                 break
 
-            time.sleep(2)  # Polling interval
+            time.sleep(2)  
 
         return {'success': False, 'error': 'Deep research job terminated unexpectedly'}
 
@@ -2531,7 +2531,7 @@ class FirecrawlApp:
         json_data = {'query': query, **research_params.dict(by_alias=True, exclude_none=True)}
         json_data['origin'] = f"python-sdk@{version}"
 
-        # Handle json options schema if present
+        
         if 'jsonOptions' in json_data:
             json_opts = json_data['jsonOptions']
             if json_opts and 'schema' in json_opts and hasattr(json_opts['schema'], 'schema'):
@@ -2608,7 +2608,7 @@ class FirecrawlApp:
         if not kwargs:
             return
 
-        # Known parameter mappings for each method
+        
         method_params = {
             "scrape_url": {"formats", "include_tags", "exclude_tags", "only_main_content", "wait_for", 
                           "timeout", "location", "mobile", "skip_tls_verification", "remove_base64_images",
@@ -2633,16 +2633,16 @@ class FirecrawlApp:
                                            "actions", "agent", "webhook"}
         }
 
-        # Get allowed parameters for this method
+        
         allowed_params = method_params.get(method_name, set())
         
-        # Check for unknown parameters
+        
         unknown_params = set(kwargs.keys()) - allowed_params
         if unknown_params:
             raise ValueError(f"Unsupported parameter(s) for {method_name}: {', '.join(unknown_params)}. Please refer to the API documentation for the correct parameters.")
 
-        # Additional type validation can be added here if needed
-        # For now, we rely on Pydantic models for detailed type validation
+        
+        
 
     def _ensure_schema_dict(self, schema):
         """
@@ -2651,7 +2651,7 @@ class FirecrawlApp:
         if schema is None:
             return schema
         if isinstance(schema, type):
-            # Pydantic v1/v2 model class
+            
             if hasattr(schema, 'model_json_schema'):
                 return schema.model_json_schema()
             elif hasattr(schema, 'schema'):
@@ -3039,18 +3039,18 @@ class AsyncFirecrawlApp(FirecrawlApp):
         Raises:
             Exception: If scraping fails
         """
-        # Validate any additional kwargs
+        
         self._validate_kwargs(kwargs, "scrape_url")
 
         _headers = self._prepare_headers()
 
-        # Build scrape parameters
+        
         scrape_params = {
             'url': url,
             'origin': f"python-sdk@{version}"
         }
 
-        # Add optional parameters if provided and not None
+        
         if formats:
             scrape_params['formats'] = formats
         if headers:
@@ -3098,7 +3098,7 @@ class AsyncFirecrawlApp(FirecrawlApp):
         if 'jsonOptions' in scrape_params and scrape_params['jsonOptions'] and 'schema' in scrape_params['jsonOptions']:
             scrape_params['jsonOptions']['schema'] = self._ensure_schema_dict(scrape_params['jsonOptions']['schema'])
 
-        # Make async request
+        
         endpoint = f'/v1/scrape'
         response = await self._async_post_request(
             f'{self.api_url}{endpoint}',
@@ -3111,7 +3111,7 @@ class AsyncFirecrawlApp(FirecrawlApp):
         elif "error" in response:
             raise Exception(f'Failed to scrape URL. Error: {response["error"]}')
         else:
-            # Use the response content directly if possible, otherwise a generic message
+            
             error_content = response.get('error', str(response))
             raise Exception(f'Failed to scrape URL. Error: {error_content}')
 
@@ -3175,12 +3175,12 @@ class AsyncFirecrawlApp(FirecrawlApp):
         Raises:
             Exception: If batch scrape fails
         """
-        # Validate any additional kwargs
+        
         self._validate_kwargs(kwargs, "batch_scrape_urls")
 
         scrape_params = {}
 
-        # Add individual parameters
+        
         if formats is not None:
             scrape_params['formats'] = formats
         if headers is not None:
@@ -3222,10 +3222,10 @@ class AsyncFirecrawlApp(FirecrawlApp):
         if agent is not None:
             scrape_params['agent'] = agent.dict(by_alias=True, exclude_none=True)
 
-        # Add any additional kwargs
+        
         scrape_params.update(kwargs)
 
-        # Create final params object
+        
         final_params = ScrapeParams(**scrape_params)
         params_dict = final_params.dict(by_alias=True, exclude_none=True)
         params_dict['urls'] = urls
@@ -3236,7 +3236,7 @@ class AsyncFirecrawlApp(FirecrawlApp):
         if 'jsonOptions' in params_dict and params_dict['jsonOptions'] and 'schema' in params_dict['jsonOptions']:
             params_dict['jsonOptions']['schema'] = self._ensure_schema_dict(params_dict['jsonOptions']['schema'])
 
-        # Make request
+        
         headers = self._prepare_headers(idempotency_key)
         response = await self._async_post_request(
             f'{self.api_url}/v1/batch/scrape',
@@ -3315,12 +3315,12 @@ class AsyncFirecrawlApp(FirecrawlApp):
         Raises:
             Exception: If job initiation fails
         """
-        # Validate any additional kwargs
+        
         self._validate_kwargs(kwargs, "async_batch_scrape_urls")
 
         scrape_params = {}
 
-        # Add individual parameters
+        
         if formats is not None:
             scrape_params['formats'] = formats
         if headers is not None:
@@ -3364,10 +3364,10 @@ class AsyncFirecrawlApp(FirecrawlApp):
         if zero_data_retention is not None:
             scrape_params['zeroDataRetention'] = zero_data_retention
         
-        # Add any additional kwargs
+        
         scrape_params.update(kwargs)
 
-        # Create final params object
+        
         final_params = ScrapeParams(**scrape_params)
         params_dict = final_params.dict(by_alias=True, exclude_none=True)
         params_dict['urls'] = urls
@@ -3378,7 +3378,7 @@ class AsyncFirecrawlApp(FirecrawlApp):
         if 'jsonOptions' in params_dict and params_dict['jsonOptions'] and 'schema' in params_dict['jsonOptions']:
             params_dict['jsonOptions']['schema'] = self._ensure_schema_dict(params_dict['jsonOptions']['schema'])
 
-        # Make request
+        
         headers = self._prepare_headers(idempotency_key)
         response = await self._async_post_request(
             f'{self.api_url}/v1/batch/scrape',
@@ -3452,12 +3452,12 @@ class AsyncFirecrawlApp(FirecrawlApp):
         Raises:
             Exception: If crawl fails
         """
-        # Validate any additional kwargs
+        
         self._validate_kwargs(kwargs, "crawl_url")
 
         crawl_params = {}
 
-        # Add individual parameters
+        
         if include_paths is not None:
             crawl_params['includePaths'] = include_paths
         if exclude_paths is not None:
@@ -3491,15 +3491,15 @@ class AsyncFirecrawlApp(FirecrawlApp):
         if allow_subdomains is not None:
             crawl_params['allowSubdomains'] = allow_subdomains
 
-        # Add any additional kwargs
+        
         crawl_params.update(kwargs)
 
-        # Create final params object
+        
         final_params = CrawlParams(**crawl_params)
         params_dict = final_params.dict(by_alias=True, exclude_none=True)
         params_dict['url'] = url
         params_dict['origin'] = f"python-sdk@{version}"
-        # Make request
+        
         headers = self._prepare_headers(idempotency_key)
         response = await self._async_post_request(
           f'{self.api_url}/v1/crawl', params_dict, headers)
@@ -3572,7 +3572,7 @@ class AsyncFirecrawlApp(FirecrawlApp):
         """
         crawl_params = {}
 
-        # Add individual parameters
+        
         if include_paths is not None:
             crawl_params['includePaths'] = include_paths
         if exclude_paths is not None:
@@ -3606,16 +3606,16 @@ class AsyncFirecrawlApp(FirecrawlApp):
         if allow_subdomains is not None:
             crawl_params['allowSubdomains'] = allow_subdomains
 
-        # Add any additional kwargs
+        
         crawl_params.update(kwargs)
 
-        # Create final params object
+        
         final_params = CrawlParams(**crawl_params)
         params_dict = final_params.dict(by_alias=True, exclude_none=True)
         params_dict['url'] = url
         params_dict['origin'] = f"python-sdk@{version}"
 
-        # Make request
+        
         headers = self._prepare_headers(idempotency_key)
         response = await self._async_post_request(
           f'{self.api_url}/v1/crawl',
@@ -3678,7 +3678,7 @@ class AsyncFirecrawlApp(FirecrawlApp):
                     data.extend(next_data.get('data', []))
                     status_data = next_data
                 status_data['data'] = data
-        # Create CrawlStatusResponse object from status data
+        
         response = CrawlStatusResponse(
             status=status_data.get('status'),
             total=status_data.get('total'),
@@ -3779,7 +3779,7 @@ class AsyncFirecrawlApp(FirecrawlApp):
         if params:
             map_params.update(params.dict(by_alias=True, exclude_none=True))
 
-        # Add individual parameters
+        
         if search is not None:
             map_params['search'] = search
         if ignore_sitemap is not None:
@@ -3793,13 +3793,13 @@ class AsyncFirecrawlApp(FirecrawlApp):
         if timeout is not None:
             map_params['timeout'] = timeout
 
-        # Create final params object
+        
         final_params = MapParams(**map_params)
         params_dict = final_params.dict(by_alias=True, exclude_none=True)
         params_dict['url'] = url
         params_dict['origin'] = f"python-sdk@{version}"
 
-        # Make request
+        
         endpoint = f'/v1/map'
         response = await self._async_post_request(
             f'{self.api_url}{endpoint}',
@@ -3868,7 +3868,7 @@ class AsyncFirecrawlApp(FirecrawlApp):
             'origin': f'python-sdk@{get_version()}'
         }
 
-        # Only add prompt and systemPrompt if they exist
+        
         if prompt:
             request_data['prompt'] = prompt
         if system_prompt:
@@ -4513,7 +4513,7 @@ class AsyncFirecrawlApp(FirecrawlApp):
         Raises:
             Exception: If search fails or response cannot be parsed
         """
-        # Build search parameters
+        
         search_params = {}
         if params:
             if isinstance(params, dict):
@@ -4521,7 +4521,7 @@ class AsyncFirecrawlApp(FirecrawlApp):
             else:
                 search_params.update(params.dict(by_alias=True, exclude_none=True))
 
-        # Add individual parameters
+        
         if limit is not None:
             search_params['limit'] = limit
         if tbs is not None:
@@ -4539,10 +4539,10 @@ class AsyncFirecrawlApp(FirecrawlApp):
         if scrape_options is not None:
             search_params['scrapeOptions'] = scrape_options.dict(by_alias=True, exclude_none=True)
         
-        # Add any additional kwargs
+        
         search_params.update(kwargs)
 
-        # Create final params object
+        
         final_params = SearchParams(query=query, **search_params)
         params_dict = final_params.dict(by_alias=True, exclude_none=True)
         params_dict['origin'] = f"python-sdk@{version}"
@@ -4614,7 +4614,7 @@ class AsyncCrawlWatcher(CrawlWatcher):
         except:
             raise aiohttp.ClientError(f'Failed to parse Firecrawl error response as JSON. Status code: {response.status}')
 
-        # Use the app's method to get the error message
+        
         message = await self.app._get_async_error_message(response.status, action, error_message, error_details)
 
         raise aiohttp.ClientError(message)

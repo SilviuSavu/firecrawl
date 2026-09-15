@@ -19,14 +19,14 @@ class DummyClient:
 
 class FakeWebSocket:
     def __init__(self, messages):
-        # messages: list of dicts to be json-dumped
+        
         self._messages = list(messages)
 
     async def recv(self):
         if not self._messages:
-            # No more messages; block a bit to allow loop to end
+            
             await asyncio.sleep(0.01)
-            # Simulate disconnect
+            
             raise asyncio.CancelledError()
         msg = self._messages.pop(0)
         return json.dumps(msg)
@@ -45,7 +45,7 @@ class FakeConnect:
 
 @pytest.mark.parametrize("kind", ["crawl", "batch"]) 
 def test_ws_watcher_document_and_done(monkeypatch, kind):
-    # Prepare messages: one document then done
+    
     messages = [
         {"type": "document", "data": {"url": "https://example.com", "rawHtml": "<html>"}},
         {"type": "done", "data": {"status": "completed", "data": []}},
@@ -71,7 +71,7 @@ def test_ws_watcher_document_and_done(monkeypatch, kind):
 
     watcher.start()
 
-    # Wait for thread to finish
+    
     deadline = time.time() + 2
     while watcher._thread and watcher._thread.is_alive() and time.time() < deadline:
         time.sleep(0.01)
@@ -158,7 +158,7 @@ def test_ws_watcher_catchup_dispatches_documents_and_updates_status(monkeypatch,
 
 @pytest.mark.parametrize("kind", ["crawl", "batch"]) 
 def test_ws_watcher_status_only_terminal_snapshot_triggers_done(monkeypatch, kind):
-    # No explicit type, only a terminal status snapshot
+    
     messages = [
         {"data": {"status": "completed", "data": []}},
     ]
@@ -193,7 +193,7 @@ def test_ws_watcher_status_only_terminal_snapshot_triggers_done(monkeypatch, kin
 
 
 def test_ws_watcher_batch_cancelled_snapshot_no_done_event(monkeypatch):
-    # Batch-only: cancelled snapshot should end without a 'done' event
+    
     messages = [
         {"data": {"status": "cancelled", "data": []}},
     ]
@@ -228,7 +228,7 @@ def test_ws_watcher_batch_cancelled_snapshot_no_done_event(monkeypatch):
 
 
 def test_ws_watcher_propagates_authorization_header(monkeypatch):
-    # Ensure Authorization header is forwarded to websockets.connect
+    
     messages = [
         {"type": "done", "data": {"status": "completed", "data": []}},
     ]
@@ -256,13 +256,13 @@ def test_ws_watcher_propagates_authorization_header(monkeypatch):
     watcher.stop()
 
     assert captured_headers["headers"] is not None
-    # Expect an Authorization header with Bearer token
+    
     assert any(h[0] == "Authorization" and "Bearer" in h[1] for h in captured_headers["headers"]) 
 
 
 @pytest.mark.parametrize("kind", ["crawl", "batch"]) 
 def test_ws_watcher_normalizes_document_fields_in_snapshot(monkeypatch, kind):
-    # Status-only snapshot with camelCase fields should be normalized in emitted job
+    
     messages = [
         {"data": {"status": "completed", "data": [
             {"url": "https://example.com/x", "rawHtml": "<x>", "changeTracking": {"modes": ["git-diff"]}}
@@ -300,7 +300,7 @@ def test_ws_watcher_normalizes_document_fields_in_snapshot(monkeypatch, kind):
 
 @pytest.mark.parametrize("kind", ["crawl", "batch"]) 
 def test_ws_watcher_uses_correct_ws_uri(monkeypatch, kind):
-    # Verify WS URI uses the correct path per kind and http->ws scheme
+    
     messages = [
         {"type": "done", "data": {"status": "completed", "data": []}},
     ]

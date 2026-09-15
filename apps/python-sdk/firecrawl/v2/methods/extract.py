@@ -55,9 +55,9 @@ def _prepare_extract_request(
         body["integration"] = str(integration).strip()
     if agent is not None:
         try:
-            body["agent"] = agent.model_dump(exclude_none=True)  # type: ignore[attr-defined]
+            body["agent"] = agent.model_dump(exclude_none=True)  
         except AttributeError:
-            body["agent"] = agent  # fallback
+            body["agent"] = agent  
     if threat_protection is not None:
         body["threatProtection"] = threat_protection.model_dump(
             by_alias=True, exclude_none=True

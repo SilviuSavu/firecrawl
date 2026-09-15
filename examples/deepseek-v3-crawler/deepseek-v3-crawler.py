@@ -4,7 +4,7 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
-# ANSI color codes
+
 class Colors:
     CYAN = '\033[96m'
     YELLOW = '\033[93m'
@@ -14,14 +14,14 @@ class Colors:
     BLUE = '\033[94m'
     RESET = '\033[0m'
 
-# Load environment variables
+
 load_dotenv()
 
-# Retrieve API keys from environment variables
+
 firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
 openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
 
-# Initialize the FirecrawlApp and OpenRouter client
+
 app = FirecrawlApp(api_key=firecrawl_api_key)
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
@@ -30,7 +30,7 @@ client = OpenAI(
 
 def main():
     try:
-        # Test the model availability first
+        
         test_response = client.chat.completions.create(
             model="deepseek/deepseek-chat-v3-0324:free",
             messages=[{"role": "user", "content": "test"}]
@@ -117,7 +117,7 @@ def find_objective_in_top_pages(pages, objective, app, client):
             Scraped content: {scrape_result['markdown']}
             """
         
-            # Using OpenRouter's API to analyze the content
+            
             response = client.chat.completions.create(
                 model="deepseek/deepseek-chat-v3-0324:free",
                 messages=[{
@@ -130,14 +130,14 @@ def find_objective_in_top_pages(pages, objective, app, client):
             )
             result = response.choices[0].message.content.strip()
             
-            print(f"{Colors.CYAN}Model response: {result}{Colors.RESET}")  # Debug output
+            print(f"{Colors.CYAN}Model response: {result}{Colors.RESET}")  
             
             if result == "Objective not met":
                 print(f"{Colors.YELLOW}Objective not met in this page, continuing search...{Colors.RESET}")
                 continue
             
             try:
-                # Clean up the response if it's wrapped in code blocks
+                
                 if result.startswith('```'):
                     result = result.split('```')[1]
                     if result.startswith('json'):

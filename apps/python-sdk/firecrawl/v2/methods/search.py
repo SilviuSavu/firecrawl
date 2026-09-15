@@ -44,8 +44,8 @@ def search(
             out.images = _transform_array(data["images"], SearchResultImages)
         return out
     except Exception as err:
-        # If the error is an HTTP error from requests, handle it
-        # (simulate isAxiosError by checking for requests' HTTPError or Response)
+        
+        
         if hasattr(err, "response"):
             handle_response_error(getattr(err, "response"), "search")
         raise err
@@ -102,25 +102,25 @@ def _validate_search_request(request: SearchRequest) -> SearchRequest:
     Raises:
         ValueError: If request is invalid
     """
-    # Validate query
+    
     if not request.query or not request.query.strip():
         raise ValueError("Query cannot be empty")
     
-    # Validate limit
+    
     if request.limit is not None:
         if request.limit <= 0:
             raise ValueError("Limit must be positive")
         if request.limit > 100:
             raise ValueError("Limit cannot exceed 100")
     
-    # Validate timeout
+    
     if request.timeout is not None:
         if request.timeout <= 0:
             raise ValueError("Timeout must be positive")
-        if request.timeout > 300000:  # 5 minutes max
+        if request.timeout > 300000:  
             raise ValueError("Timeout cannot exceed 300000ms (5 minutes)")
     
-    # Validate sources (if provided)
+    
     if request.sources is not None:
         valid_sources = {"web", "news", "images"}
         for source in request.sources:
@@ -131,7 +131,7 @@ def _validate_search_request(request: SearchRequest) -> SearchRequest:
                 if source.type not in valid_sources:
                     raise ValueError(f"Invalid source type: {source.type}. Valid types: {valid_sources}")
     
-    # Validate categories (if provided)
+    
     if request.categories is not None:
         valid_categories = {"github", "research", "pdf"}
         for category in request.categories:
@@ -147,17 +147,17 @@ def _validate_search_request(request: SearchRequest) -> SearchRequest:
             "include_domains and exclude_domains cannot both be specified"
         )
     
-    # Validate location (if provided)
+    
     if request.location is not None:
         if not isinstance(request.location, str) or len(request.location.strip()) == 0:
             raise ValueError("Location must be a non-empty string")
     
-    # Validate tbs (time-based search, if provided)
+    
     if request.tbs is not None:
         if not isinstance(request.tbs, str) or len(request.tbs.strip()) == 0:
             raise ValueError("tbs must be a non-empty string")
     
-    # Validate scrape_options (if provided)
+    
     if request.scrape_options is not None:
         validate_scrape_options(request.scrape_options)
     
@@ -177,45 +177,45 @@ def _prepare_search_request(request: SearchRequest) -> Dict[str, Any]:
     validated_request = _validate_search_request(request)
     data = validated_request.model_dump(exclude_none=True, by_alias=True)
     
-    # Ensure default values are included only if not explicitly set to None
+    
     if "limit" not in data and validated_request.limit is not None:
         data["limit"] = validated_request.limit
     if "timeout" not in data and validated_request.timeout is not None:
         data["timeout"] = validated_request.timeout
     
-    # Handle snake_case to camelCase conversions manually
-    # (Pydantic Field() aliases interfere with value assignment)
     
-    # ignore_invalid_urls → ignoreInvalidURLs
+    
+    
+    
     if validated_request.ignore_invalid_urls is not None:
         data["ignoreInvalidURLs"] = validated_request.ignore_invalid_urls
         data.pop("ignore_invalid_urls", None)
 
-    # include_domains → includeDomains
+    
     if validated_request.include_domains is not None:
         data["includeDomains"] = validated_request.include_domains
         data.pop("include_domains", None)
 
-    # exclude_domains → excludeDomains
+    
     if validated_request.exclude_domains is not None:
         data["excludeDomains"] = validated_request.exclude_domains
         data.pop("exclude_domains", None)
     
-    # threat_protection → threatProtection
+    
     if validated_request.threat_protection is not None:
         data["threatProtection"] = validated_request.threat_protection.model_dump(
             by_alias=True, exclude_none=True
         )
         data.pop("threat_protection", None)
 
-    # scrape_options → scrapeOptions
+    
     if validated_request.scrape_options is not None:
         scrape_data = prepare_scrape_options(validated_request.scrape_options)
         if scrape_data:
             data["scrapeOptions"] = scrape_data
         data.pop("scrape_options", None)
     
-    # Only include integration if it was explicitly provided and non-empty
+    
     integration_value = getattr(validated_request, "integration", None)
     if integration_value is not None:
         integration_str = str(integration_value).strip()

@@ -11,7 +11,7 @@ def main():
     print('🎯 Extracting attributes from Hacker News...')
 
     try:
-        # Extract story IDs from Hacker News
+        
         result = app.scrape_url('https://news.ycombinator.com', {
             'formats': [
                 {'type': 'markdown'},
@@ -29,7 +29,7 @@ def main():
             print(f'✅ Success! Found {len(story_ids)} stories')
             print(f'Sample story IDs: {story_ids[:5]}')
 
-        # Example with GitHub - multiple attributes
+        
         print('\n🎯 Extracting multiple attributes from GitHub...')
 
         github_result = app.scrape_url('https://github.com/microsoft/vscode', {

@@ -42,7 +42,7 @@ def test_monitor_create_request_serializes_search_target_to_camelcase():
     assert target["queries"] == ["firecrawl launch"]
     assert target["searchWindow"] == "24h"
     assert target["maxResults"] == 15
-    # internal-only fields are never emitted by the SDK
+    
     assert "depth" not in target
     assert "alertMode" not in target
 

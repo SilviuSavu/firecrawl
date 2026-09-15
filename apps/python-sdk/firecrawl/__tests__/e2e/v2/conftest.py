@@ -23,7 +23,7 @@ def _idmux(identity_request: dict) -> dict:
 
 @pytest.fixture(scope="session")
 def api_url():
-    # Prefer TEST_URL, then FIRECRAWL_API_URL (for parity with JS), then legacy API_URL
+    
     return (
         os.getenv("TEST_URL")
         or os.getenv("FIRECRAWL_API_URL")
@@ -31,7 +31,7 @@ def api_url():
         or "https://api.firecrawl.dev"
     )
 
-# Resolve identity and export environment at import time so tests that read env at module import succeed
+
 _IDENTITY = None
 _API_URL = (
     os.getenv("TEST_URL")
@@ -43,7 +43,7 @@ _API_URL = (
 _IDMUX_URL = os.getenv("IDMUX_URL")
 if _IDMUX_URL:
     run_name = os.getenv("PYTEST_RUN_NAME") or "py-e2e"
-    # If IDMUX_URL is set, idmux MUST succeed; do not silently fall back
+    
     _IDENTITY = _idmux({"name": run_name})
     os.environ["API_KEY"] = _IDENTITY.get("apiKey", "")
     os.environ["API_URL"] = _API_URL
@@ -54,7 +54,7 @@ def api_identity():
 
 @pytest.fixture(autouse=True)
 def _inject_client(request, api_identity, api_url):
-    # For class-based tests that rely on self.client, inject a client if missing
+    
     inst = getattr(request, "instance", None)
     if inst is not None and not hasattr(inst, "client"):
         try:
@@ -62,7 +62,7 @@ def _inject_client(request, api_identity, api_url):
             inst.client = Firecrawl(api_key=api_identity.get("apiKey", ""), api_url=api_url)
         except Exception:
             pass
-    # For function-based modules that expect a module-level `firecrawl` symbol
+    
     mod = getattr(request, "module", None)
     if mod is not None and not hasattr(mod, "firecrawl"):
         try:

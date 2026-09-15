@@ -4,39 +4,39 @@ from firecrawl import FirecrawlApp
 from dotenv import load_dotenv
 from openai import OpenAI
 
-# Load environment variables
+
 load_dotenv()
 
-# Retrieve API keys from environment variables
+
 firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
-# Initialize the FirecrawlApp and set OpenAI API key
+
 app = FirecrawlApp(api_key=firecrawl_api_key)
 client = OpenAI(api_key=openai_api_key)
 
 def main():
-    # Get user input
+    
     blog_url = input("Enter the blog URL: ")
 
     if not blog_url.strip():
         blog_url = "https://www.firecrawl.dev/blog/how-to-use-openai-o1-reasoning-models-in-applications"
 
-    # Scrape the blog content
+    
     print("Scraping the blog content...")
     blog_scrape_result = app.scrape_url(blog_url, params={'formats': ['markdown']})
 
-    # Get the blog content in markdown format
+    
     blog_content = blog_scrape_result.get('markdown', '')
 
-    # Turn the blog URL into a top-level domain
+    
     top_level_domain = '/'.join(blog_url.split('/')[:3])
 
-    # Map the website to get all links
+    
     print("Mapping the website to get all links...")
     site_map = app.map_url(top_level_domain)
 
-    # Get the list of URLs from the site map
+    
     site_links = site_map.get('links', [])
 
 
@@ -58,11 +58,11 @@ Only return the revised blog post in markdown format.
 
     import re
 
-    # Function to count links in a markdown content
+    
     def count_links(markdown_content):
         return len(re.findall(r'\[.*?\]\(.*?\)', markdown_content))
 
-    # Use OpenAI API to get the revised blog post
+    
     print("Generating the revised blog post with internal links...")
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -80,11 +80,11 @@ Only return the revised blog post in markdown format.
 
     revised_blog_post = completion.choices[0].message.content
 
-    # Count links in the original and revised blog post
+    
     original_links_count = count_links(blog_content)
     revised_links_count = count_links(revised_blog_post)
 
-    # Output a portion of the revised blog post and link counts
+    
     print("\nRevised blog post (first 500 characters):")
     print(revised_blog_post[:500])
     print(f"\nNumber of links in the original blog post: {original_links_count}")

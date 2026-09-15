@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from serpapi.google_search import GoogleSearch
 from mistralai import Mistral
 
-# ANSI color codes
+
 class Colors:
     CYAN = '\033[96m'
     YELLOW = '\033[93m'
@@ -16,10 +16,10 @@ class Colors:
     BLUE = '\033[94m'
     RESET = '\033[0m'
 
-# Load environment variables
+
 load_dotenv()
 
-# Initialize clients
+
 mistral_client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
 firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
 serp_api_key = os.getenv("SERP_API_KEY")
@@ -78,7 +78,7 @@ def select_urls_with_mistral(company, objective, serp_results):
             ]
         )
 
-        # Clean the response text
+        
         cleaned_response = response.choices[0].message.content.strip()
         if cleaned_response.startswith('```'):
             cleaned_response = cleaned_response.split('```')[1]
@@ -87,40 +87,40 @@ def select_urls_with_mistral(company, objective, serp_results):
         cleaned_response = cleaned_response.strip()
 
         try:
-            # Parse JSON response
+            
             result = json.loads(cleaned_response)
             if isinstance(result, dict) and "selected_urls" in result:
                 url_data = result["selected_urls"]
-                # Extract just the URLs for compatibility with existing code
+                
                 urls = [item["url"] for item in url_data if "url" in item]
                 
-                # Print detailed information about selected URLs
+                
                 print(f"{Colors.CYAN}Selected URLs with confidence scores:{Colors.RESET}")
                 for item in url_data:
                     if "url" in item and "confidence" in item and "justification" in item:
                         print(f"- {item['url']} (Confidence: {item['confidence']}/10)")
                         print(f"  Justification: {item['justification']}")
             else:
-                # Fallback to text parsing
+                
                 urls = [line.strip() for line in cleaned_response.split('\n') 
                        if line.strip().startswith(('http://', 'https://'))]
         except json.JSONDecodeError:
-            # Fallback to text parsing
+            
             urls = [line.strip() for line in cleaned_response.split('\n') 
                    if line.strip().startswith(('http://', 'https://'))]
 
-        # Clean up URLs
+        
         cleaned_urls = [url.replace('/*', '').rstrip('/') for url in urls]
         cleaned_urls = [url for url in cleaned_urls if url]
 
-        # Limit to top 5 URLs to ensure quality over quantity
+        
         cleaned_urls = cleaned_urls[:5]
 
         if not cleaned_urls:
             print(f"{Colors.YELLOW}No valid URLs found in response.{Colors.RESET}")
             return []
 
-        # Return the URLs for cross-verification
+        
         return cleaned_urls
 
     except Exception as e:
@@ -154,7 +154,7 @@ def cross_verify_sources(urls, company, objective):
             ]
         )
         
-        # Clean the response text
+        
         cleaned_response = response.choices[0].message.content.strip()
         if cleaned_response.startswith('```'):
             cleaned_response = cleaned_response.split('```')[1]
@@ -163,7 +163,7 @@ def cross_verify_sources(urls, company, objective):
         cleaned_response = cleaned_response.strip()
         
         try:
-            # Parse JSON response
+            
             result = json.loads(cleaned_response)
             if isinstance(result, dict) and "verified_urls" in result:
                 verified_urls = result["verified_urls"]
@@ -177,23 +177,23 @@ def cross_verify_sources(urls, company, objective):
                 
                 return verified_urls
             else:
-                # If JSON parsing fails, return original URLs
+                
                 print(f"{Colors.YELLOW}Could not parse cross-verification result. Using original URLs.{Colors.RESET}")
                 return urls
         except json.JSONDecodeError:
-            # If JSON parsing fails, return original URLs
+            
             print(f"{Colors.YELLOW}Could not parse cross-verification result. Using original URLs.{Colors.RESET}")
             return urls
             
     except Exception as e:
         print(f"{Colors.RED}Error during cross-verification: {str(e)}{Colors.RESET}")
-        return urls  # Return original URLs if cross-verification fails
+        return urls  
 
 def extract_company_info(urls, prompt, company, api_key):
     """Use requests to call Firecrawl's extract endpoint with selected URLs."""
     print(f"{Colors.YELLOW}Extracting structured data from the provided URLs using Firecrawl...{Colors.RESET}")
     
-    # Enhanced prompt for better data quality
+    
     enhanced_prompt = (
         f"Extract accurate and verified information about {company}. "
         f"Specifically focus on: {prompt}. "
@@ -219,11 +219,11 @@ def extract_company_info(urls, prompt, company, api_key):
     payload = {
         "urls": urls,
         "prompt": enhanced_prompt,
-        "enableWebSearch": False  # Changed to False to rely only on verified URLs
+        "enableWebSearch": False  
     }
     
     try:
-        # Print the payload for debugging
+        
         print(f"{Colors.YELLOW}Request payload:{Colors.RESET}")
         print(json.dumps(payload, indent=2))
         
@@ -234,7 +234,7 @@ def extract_company_info(urls, prompt, company, api_key):
             timeout=30
         )
         
-        # Print detailed response for debugging
+        
         print(f"{Colors.YELLOW}Response status code: {response.status_code}{Colors.RESET}")
         print(f"{Colors.YELLOW}Response headers: {response.headers}{Colors.RESET}")
         
@@ -272,7 +272,7 @@ def poll_firecrawl_result(extraction_id, api_key, interval=5, max_attempts=60):
 
     print(f"{Colors.YELLOW}Waiting for extraction to complete...{Colors.RESET}")
     
-    # Show a simple progress indicator instead of "still processing" messages
+    
     print(f"{Colors.YELLOW}[", end="", flush=True)
     
     for attempt in range(1, max_attempts + 1):
@@ -282,36 +282,36 @@ def poll_firecrawl_result(extraction_id, api_key, interval=5, max_attempts=60):
             data = response.json()
 
             if data.get('success') and data.get('data'):
-                print(f"]{Colors.RESET}")  # Close the progress indicator
+                print(f"]{Colors.RESET}")  
                 print(f"{Colors.GREEN}Data successfully extracted:{Colors.RESET}")
                 
-                # Validate and clean the extracted data
+                
                 validated_data = validate_extracted_data(data['data'])
                 print(json.dumps(validated_data, indent=2))
                 return validated_data
             elif data.get('success') and not data.get('data'):
-                # Show a simple progress indicator
+                
                 print(f"{Colors.YELLOW}.", end="", flush=True)
                 time.sleep(interval)
             else:
-                print(f"]{Colors.RESET}")  # Close the progress indicator
+                print(f"]{Colors.RESET}")  
                 print(f"{Colors.RED}API Error: {data.get('error', 'No error message provided')}{Colors.RESET}")
                 return None
 
         except requests.exceptions.RequestException as e:
-            print(f"]{Colors.RESET}")  # Close the progress indicator
+            print(f"]{Colors.RESET}")  
             print(f"{Colors.RED}Request error: {str(e)}{Colors.RESET}")
             return None
         except json.JSONDecodeError as e:
-            print(f"]{Colors.RESET}")  # Close the progress indicator
+            print(f"]{Colors.RESET}")  
             print(f"{Colors.RED}JSON parsing error: {str(e)}{Colors.RESET}")
             return None
         except Exception as e:
-            print(f"]{Colors.RESET}")  # Close the progress indicator
+            print(f"]{Colors.RESET}")  
             print(f"{Colors.RED}Unexpected error: {str(e)}{Colors.RESET}")
             return None
 
-    print(f"]{Colors.RESET}")  # Close the progress indicator
+    print(f"]{Colors.RESET}")  
     print(f"{Colors.RED}Max polling attempts reached. Extraction did not complete in time.{Colors.RESET}")
     return None
 
@@ -320,15 +320,15 @@ def validate_extracted_data(data):
     if not data or not isinstance(data, dict):
         return data
     
-    # Look for confidence scores or source information if available
+    
     validated_data = {}
     
     for key, value in data.items():
-        # Skip entries that indicate uncertainty
+        
         if isinstance(value, str) and any(term in value.lower() for term in ["unknown", "unclear", "not specified", "not found", "couldn't find"]):
             continue
             
-        # Keep entries with clear information
+        
         validated_data[key] = value
     
     return validated_data
@@ -337,13 +337,13 @@ def main():
     company = input(f"{Colors.BLUE}Enter the company name: {Colors.RESET}")
     objective = input(f"{Colors.BLUE}Enter what information you want about the company: {Colors.RESET}")
     
-    # Add more specific search terms for better results
+    
     search_query = f"{company} {objective}"
-    # print(f"{Colors.YELLOW}Searching Google for '{search_query}'...{Colors.RESET}")
+    
     serp_results = search_google(search_query)
     
     if not serp_results:
-        # Fallback to just company name
+        
         print(f"{Colors.YELLOW}No results found. Trying broader search...{Colors.RESET}")
         serp_results = search_google(company)
         
@@ -351,14 +351,14 @@ def main():
         print(f"{Colors.RED}No search results found.{Colors.RESET}")
         return
     
-    # Select URLs with Mistral
+    
     selected_urls = select_urls_with_mistral(company, objective, serp_results)
     
     if not selected_urls:
         print(f"{Colors.RED}No URLs were selected.{Colors.RESET}")
         return
     
-    # Cross-verify the selected sources
+    
     verified_urls = cross_verify_sources(selected_urls, company, objective)
     
     if not verified_urls:

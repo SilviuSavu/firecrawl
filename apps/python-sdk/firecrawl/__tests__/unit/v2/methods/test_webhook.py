@@ -32,8 +32,8 @@ class TestWebhookConfig:
     
     def test_webhook_config_validation(self):
         """Test WebhookConfig validation."""
-        # URL is required
-        with pytest.raises(Exception):  # Pydantic validation error
+        
+        with pytest.raises(Exception):  
             WebhookConfig()
 
 
@@ -92,7 +92,7 @@ class TestCrawlRequestWebhook:
         data = _prepare_crawl_request(request)
         webhook_data = data["webhook"]
         
-        # Check that all fields are properly serialized
+        
         assert webhook_data["url"] == "https://example.com/webhook"
         assert webhook_data["headers"] == {"Content-Type": "application/json"}
         assert webhook_data["metadata"] == {"test": "value"}
@@ -115,7 +115,7 @@ class TestCrawlRequestWebhook:
         data = _prepare_crawl_request(request)
         webhook_data = data["webhook"]
         
-        # Only url should be present, None values should be excluded
+        
         assert webhook_data["url"] == "https://example.com/webhook"
         assert "headers" not in webhook_data
         assert "metadata" not in webhook_data

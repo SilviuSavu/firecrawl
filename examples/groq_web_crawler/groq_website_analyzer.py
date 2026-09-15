@@ -3,7 +3,7 @@ from firecrawl import FirecrawlApp
 from groq import Groq
 from dotenv import load_dotenv
 
-# ANSI color codes for pretty terminal output
+
 class Colors:
     CYAN = '\033[96m'
     YELLOW = '\033[93m'
@@ -13,14 +13,14 @@ class Colors:
     BLUE = '\033[94m'
     RESET = '\033[0m'
 
-# Load environment variables
+
 load_dotenv()
 
-# Retrieve API keys from environment variables
+
 firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
 groq_api_key = os.getenv("GROQ_API_KEY")
 
-# Initialize the FirecrawlApp and Groq client
+
 app = FirecrawlApp(api_key=firecrawl_api_key)
 groq_client = Groq(api_key=groq_api_key)
 
@@ -125,7 +125,7 @@ def analyze_website_sentiment(content, model="deepseek-r1-distill-llama-70b"):
         analysis_text = completion.choices[0].message.content
         print(f"{Colors.GREEN}Sentiment analysis completed.{Colors.RESET}")
 
-        # Extract the JSON from the response
+        
         try:
             import re
             import json
@@ -191,18 +191,18 @@ def main():
     """
     Main function to run the website analysis.
     """
-    # Get user input
+    
     url = input(f"{Colors.BLUE}Enter the website URL to analyze: {Colors.RESET}")
 
     if not url.strip():
         print(f"{Colors.RED}No URL entered. Exiting.{Colors.RESET}")
         return
 
-    # Add http:// prefix if not present
+    
     if not url.startswith('http'):
         url = 'https://' + url
 
-    # Scrape the website
+    
     scrape_result = scrape_website(url)
 
     if not scrape_result or 'markdown' not in scrape_result:
@@ -211,7 +211,7 @@ def main():
 
     content = scrape_result['markdown']
 
-    # Ask user which analysis to perform
+    
     print(f"\n{Colors.BLUE}Select an analysis option:{Colors.RESET}")
     print(f"1. Generate a concise summary of the website")
     print(f"2. Analyze the sentiment and tone of the website")
@@ -220,7 +220,7 @@ def main():
 
     option = input(f"{Colors.BLUE}Enter your choice (1-4): {Colors.RESET}")
 
-    # Perform the selected analysis
+    
     if option == '1' or option == '4':
         summary = summarize_content(content)
         if summary:

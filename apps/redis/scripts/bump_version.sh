@@ -23,9 +23,6 @@ fi
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 if [[ "$prerel" == "prerel" && "$BRANCH" != "prerelease" ]]; then
-#  echo "❌ Sorry, you can only cut a pre-release from the 'prelease' branch"
-#  echo "Run 'git checkout prerelease && git pull origin prerelease' and try again."
-#  exit 1
   echo "⚠️ Pre-releases should be cut from the 'prerelease' branch"
   echo "Please make sure you're not overwriting someone else's prerelease!"
   echo

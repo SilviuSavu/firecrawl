@@ -35,12 +35,12 @@ class TestAsyncCrawlRequestPreparation:
         assert payload["zeroDataRetention"] is True
 
     def test_webhook_preparation(self):
-        # string webhook
+        
         req = CrawlRequest(url="https://example.com", webhook="https://example.com/hook")
         payload = _prepare_crawl_request(req)
         assert payload["webhook"] == "https://example.com/hook"
 
-        # object webhook
+        
         req2 = CrawlRequest(url="https://example.com", webhook=WebhookConfig(url="https://x/h", headers={"X": "1"}, events=["completed"]))
         payload2 = _prepare_crawl_request(req2)
         assert isinstance(payload2["webhook"], dict)

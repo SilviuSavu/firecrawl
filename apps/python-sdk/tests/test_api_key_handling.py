@@ -39,6 +39,6 @@ async def test_async_self_host_allows_missing_api_key():
         assert client.http_client.api_key is None
         await client.async_http_client.close()
     finally:
-        # Ensure the underlying HTTPX client is closed even if assertions fail
+        
         if not client.async_http_client._client.is_closed:
             await client.async_http_client.close()

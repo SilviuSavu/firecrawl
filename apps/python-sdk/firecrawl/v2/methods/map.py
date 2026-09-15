@@ -14,7 +14,7 @@ def _prepare_map_request(url: str, options: Optional[MapOptions] = None) -> Dict
     payload: Dict[str, Any] = {"url": url.strip()}
 
     if options is not None:
-        # Unified sitemap parameter already provided in options
+        
         data: Dict[str, Any] = {}
         if getattr(options, "sitemap", None) is not None:
             data["sitemap"] = options.sitemap
@@ -57,20 +57,20 @@ def map(client: HttpClient, url: str, options: Optional[MapOptions] = None) -> M
     if not body.get("success"):
         raise Exception(body.get("error", "Unknown error occurred"))
 
-    # shouldnt return inside data?
-    # data = body.get("data", {})
-    # result_links: list[LinkResult] = []
-    # for item in data.get("links", []):
-    #     if isinstance(item, dict):
-    #         result_links.append(
-    #             LinkResult(
-    #                 url=item.get("url", ""),
-    #                 title=item.get("title"),
-    #                 description=item.get("description"),
-    #             )
-    #         )
-    #     elif isinstance(item, str):
-    #         result_links.append(LinkResult(url=item))
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     result_links: list[LinkResult] = []
     for item in body.get("links", []):

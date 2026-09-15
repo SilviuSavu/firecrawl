@@ -11,10 +11,10 @@ class TestCrawlRequestPreparation:
         request = CrawlRequest(url="https://example.com")
         data = _prepare_crawl_request(request)
         
-        # Check basic fields
+        
         assert data["url"] == "https://example.com"
         
-        # Check that no options are present
+        
         assert "limit" not in data
         assert "prompt" not in data
 
@@ -31,10 +31,10 @@ class TestCrawlRequestPreparation:
         
         data = _prepare_crawl_request(request)
         
-        # Check basic field
+        
         assert data["url"] == "https://example.com"
         
-        # Check snake_case to camelCase conversions
+        
         assert "limit" in data
         assert data["limit"] == 10
         assert "maxDiscoveryDepth" in data
@@ -46,7 +46,7 @@ class TestCrawlRequestPreparation:
         assert "allowExternalLinks" in data
         assert data["allowExternalLinks"] is True
         
-        # Check that snake_case fields are not present
+        
         assert "ignore_sitemap" not in data
         assert "crawl_entire_domain" not in data
         assert "allow_external_links" not in data
@@ -76,7 +76,7 @@ class TestCrawlRequestPreparation:
         assert "scrapeOptions" in data
         assert "scrape_options" not in data
         
-        # Check nested conversions
+        
         scrape_data = data["scrapeOptions"]
         assert "includeTags" in scrape_data
         assert scrape_data["includeTags"] == ["h1", "h2"]
@@ -115,11 +115,11 @@ class TestCrawlRequestPreparation:
         
         data = _prepare_crawl_request(request)
         
-        # Check basic fields
+        
         assert data["url"] == "https://example.com"
         assert data["prompt"] == "Extract all blog posts and documentation"
         
-        # Check all CrawlOptions fields
+        
         assert "includePaths" in data
         assert data["includePaths"] == ["/blog/*", "/docs/*"]
         assert "excludePaths" in data
@@ -135,7 +135,7 @@ class TestCrawlRequestPreparation:
         assert "allowExternalLinks" in data
         assert data["allowExternalLinks"] is False
         
-        # Check nested scrape options
+        
         assert "scrapeOptions" in data
         scrape_data = data["scrapeOptions"]
         assert "onlyMainContent" in scrape_data
@@ -154,9 +154,9 @@ class TestCrawlRequestPreparation:
         
         data = _prepare_crawl_request(request)
         
-        # Only the required field should be present
+        
         assert "url" in data
-        assert len(data) == 1  # Only url should be present
+        assert len(data) == 1  
 
     def test_prompt_parameter(self):
         """Test that prompt parameter is included when provided."""
@@ -179,18 +179,18 @@ class TestCrawlRequestPreparation:
         
         data = _prepare_crawl_request(request)
         
-        # Should only have the required url field
+        
         assert "url" in data
-        assert len(data) == 1  # Only url should be present
+        assert len(data) == 1  
 
     def test_validation_integration(self):
         """Test that validation is called during preparation."""
-        # This should raise an error due to validation
+        
         with pytest.raises(ValueError, match="URL cannot be empty"):
             request = CrawlRequest(url="")
             _prepare_crawl_request(request)
         
-        # This should raise an error due to validation
+        
         with pytest.raises(ValueError, match="Limit must be positive"):
             request = CrawlRequest(
                 url="https://example.com",
@@ -200,7 +200,7 @@ class TestCrawlRequestPreparation:
 
     def test_scrape_options_shared_function_integration(self):
         """Test that the shared prepare_scrape_options function is being used."""
-        # Test with all snake_case fields to ensure conversion
+        
         scrape_opts = ScrapeOptions(
             include_tags=["h1", "h2"],
             exclude_tags=["nav"],
@@ -217,11 +217,11 @@ class TestCrawlRequestPreparation:
         
         data = _prepare_crawl_request(request)
         
-        # Check that scrapeOptions is present and converted
+        
         assert "scrapeOptions" in data
         scrape_data = data["scrapeOptions"]
         
-        # Check all conversions are working
+        
         assert "includeTags" in scrape_data
         assert "excludeTags" in scrape_data
         assert "onlyMainContent" in scrape_data
@@ -229,7 +229,7 @@ class TestCrawlRequestPreparation:
         assert "skipTlsVerification" in scrape_data
         assert "removeBase64Images" in scrape_data
         
-        # Check that snake_case fields are not present
+        
         assert "include_tags" not in scrape_data
         assert "exclude_tags" not in scrape_data
         assert "only_main_content" not in scrape_data

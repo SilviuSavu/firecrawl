@@ -33,7 +33,7 @@ async def test_async_crawl_start_and_status():
 @pytest.mark.asyncio
 async def test_async_crawl_with_all_params():
     client = AsyncFirecrawl(api_key=os.getenv("API_KEY"), api_url=os.getenv("API_URL"))
-    # rich scrape options including json format
+    
     json_schema = {
         "type": "object",
         "properties": {"title": {"type": "string"}},
@@ -162,11 +162,11 @@ async def test_async_active_crawls():
 async def test_async_active_crawls_with_running_crawl():
     client = AsyncFirecrawl(api_key=os.getenv("API_KEY"), api_url=os.getenv("API_URL"))
     start = await client.start_crawl("https://docs.firecrawl.dev", limit=3)
-    # fetch active crawls and assert our ID is listed
+    
     active = await client.active_crawls()
     ids = [c.id for c in active.crawls]
     assert start.id in ids
-    # cleanup
+    
     await client.cancel_crawl(start.id)
 
 
@@ -178,7 +178,7 @@ async def test_async_crawl_params_preview():
         prompt="Extract all blog posts and documentation",
     )
     assert params is not None
-    # basic sanity: at least one field should be suggested
+    
     has_any = any([
         getattr(params, "limit", None) is not None,
         getattr(params, "include_paths", None) is not None,

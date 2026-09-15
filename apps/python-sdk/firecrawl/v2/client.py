@@ -69,9 +69,9 @@ from .methods import monitor as monitor_module
 from .methods import research as research_module
 from .watcher import Watcher
 
-# Kwargs that map to ScrapeOptions fields. Used by async crawl normalization
-# to extract scrape kwargs from **kwargs before building CrawlRequest.
-# Does not include "integration" (crawl-level param, not a scrape option).
+
+
+
 _SCRAPE_OPTION_KEYS = frozenset({
     "formats", "headers", "include_tags", "exclude_tags",
     "only_main_content", "timeout", "wait_for", "mobile",
@@ -114,10 +114,10 @@ class FirecrawlClient:
         if api_key is None:
             api_key = os.getenv("FIRECRAWL_API_KEY")
 
-        # No API key is allowed: scrape, search, and interact fall back to the
-        # keyless free tier (rate-limited per IP). The HTTP client only sends an
-        # Authorization header when a key is present, and other methods return
-        # 401 from the API until a key is provided.
+        
+        
+        
+        
 
         self.config = ClientConfig(
             api_key=api_key,
@@ -1452,7 +1452,7 @@ class FirecrawlClient:
         """Get metrics about the team's scrape queue."""
         return usage_methods.get_queue_status(self.http_client)
 
-    # Browser
+    
     def browser(
         self,
         *,

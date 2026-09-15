@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "dgSpecHash": "OdR1M8gu0q0=",
+  "success": true,
+  "projectFilePath": "/Users/silviu/projects/firecrawl/apps/dot-net-sdk/Firecrawl/Firecrawl.csproj",
+  "expectedPackageFiles": [
+    "/Users/silviu/.nuget/packages/system.io.pipelines/9.0.3/system.io.pipelines.9.0.3.nupkg.sha512",
+    "/Users/silviu/.nuget/packages/system.text.encodings.web/9.0.3/system.text.encodings.web.9.0.3.nupkg.sha512",
+    "/Users/silviu/.nuget/packages/system.text.json/9.0.3/system.text.json.9.0.3.nupkg.sha512",
+    "/Users/silviu/.nuget/packages/microsoft.netcore.app.ref/8.0.27/microsoft.netcore.app.ref.8.0.27.nupkg.sha512",
+    "/Users/silviu/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.27/microsoft.aspnetcore.app.ref.8.0.27.nupkg.sha512"
+  ],
+  "logs": []
+}

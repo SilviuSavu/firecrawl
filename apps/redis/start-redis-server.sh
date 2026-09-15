@@ -16,7 +16,6 @@ fi
 if [ "${NOSAVE}" = "" ] ; then
   : ${SAVE:="3600 1 300 100 60 10000"}
 fi
-# Set maxmemory to 80% of RAM
 MAXMEMORY=$(($FLY_VM_MEMORY_MB*80/100))
 
 mkdir -p /data/redis

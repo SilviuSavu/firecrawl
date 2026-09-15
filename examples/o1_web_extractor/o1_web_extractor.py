@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from serpapi import GoogleSearch
 
-# ANSI color codes
+
 class Colors:
     CYAN = '\033[96m'
     YELLOW = '\033[93m'
@@ -15,10 +15,10 @@ class Colors:
     BLUE = '\033[94m'
     RESET = '\033[0m'
 
-# Load environment variables
+
 load_dotenv()
 
-# Initialize clients
+
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
 
@@ -34,7 +34,7 @@ def select_urls_with_o1(company, objective, serp_results):
     Returns a JSON object with a "selected_urls" property that is an array of strings.
     """
     try:
-        # Prepare the data for O1
+        
         serp_data = [{"title": r.get("title"), "link": r.get("link"), "snippet": r.get("snippet")} 
                      for r in serp_results if r.get("link")]
 
@@ -77,7 +77,7 @@ def select_urls_with_o1(company, objective, serp_results):
             }
         )
 
-        # The response is guaranteed to follow the specified JSON schema
+        
         result = json.loads(response.choices[0].message.content)
         urls = result.get("selected_urls", [])
         return urls
@@ -124,7 +124,7 @@ def main():
         print(f"{Colors.RED}No search results found.{Colors.RESET}")
         return
     
-    # Ask O1 to select URLs
+    
     selected_urls = select_urls_with_o1(company, objective, serp_results)
     
     if not selected_urls:

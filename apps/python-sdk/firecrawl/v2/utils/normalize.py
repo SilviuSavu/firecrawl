@@ -12,7 +12,7 @@ def _map_metadata_keys(md: Dict[str, Any]) -> Dict[str, Any]:
     Leaves unknown keys as-is.
     """
     mapping = {
-        # OpenGraph
+        
         "ogTitle": "og_title",
         "ogDescription": "og_description",
         "ogUrl": "og_url",
@@ -23,7 +23,7 @@ def _map_metadata_keys(md: Dict[str, Any]) -> Dict[str, Any]:
         "ogLocaleAlternate": "og_locale_alternate",
         "ogSiteName": "og_site_name",
         "ogVideo": "og_video",
-        # Dublin Core and misc
+        
         "dcTermsCreated": "dc_terms_created",
         "dcDateCreated": "dc_date_created",
         "dcDate": "dc_date",
@@ -38,7 +38,7 @@ def _map_metadata_keys(md: Dict[str, Any]) -> Dict[str, Any]:
         "publishedTime": "published_time",
         "articleTag": "article_tag",
         "articleSection": "article_section",
-        # Response-level
+        
         "sourceURL": "source_url",
         "statusCode": "status_code",
         "scrapeId": "scrape_id",
@@ -58,14 +58,14 @@ def _map_metadata_keys(md: Dict[str, Any]) -> Dict[str, Any]:
         snake = mapping.get(k, k)
         out[snake] = v
 
-    # Light coercions where server may send strings/lists
+    
     if isinstance(out.get("status_code"), str):
         try:
-            out["status_code"] = int(out["status_code"])  # type: ignore
+            out["status_code"] = int(out["status_code"])  
         except ValueError:
             pass
 
-    # Preserve list values for unknown keys; only lightweight coercions above
+    
     return out
 
 
@@ -87,13 +87,13 @@ def normalize_document_input(doc: Dict[str, Any]) -> Dict[str, Any]:
     md = normalized.get("metadata")
     if isinstance(md, dict):
         mapped = _map_metadata_keys(md)
-        # Construct a typed DocumentMetadata; extras allowed/preserved
+        
         try:
             normalized["metadata"] = DocumentMetadata.model_validate(mapped)
         except Exception:
             normalized["metadata"] = mapped
 
-    # Normalize branding top-level camelCase keys
+    
     branding = normalized.get("branding")
     if isinstance(branding, dict):
         if "colorScheme" in branding and "color_scheme" not in branding:

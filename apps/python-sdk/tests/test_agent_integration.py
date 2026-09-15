@@ -27,7 +27,7 @@ class TestAgent(unittest.TestCase):
     @patch('firecrawl.v2.utils.http_client.requests.get')
     def test_agent_basic(self, mock_get, mock_post):
         """Test basic agent call."""
-        # Mock start agent response
+        
         mock_start_response = MagicMock()
         mock_start_response.ok = True
         mock_start_response.status_code = 200
@@ -38,7 +38,7 @@ class TestAgent(unittest.TestCase):
         }
         mock_post.return_value = mock_start_response
         
-        # Mock get status response (completed)
+        
         mock_status_response = MagicMock()
         mock_status_response.ok = True
         mock_status_response.status_code = 200
@@ -63,23 +63,23 @@ class TestAgent(unittest.TestCase):
             schema=FoundersSchema
         )
         
-        # Verify post was called with correct URL and data
+        
         mock_post.assert_called_once()
         post_call_args = mock_post.call_args
         post_url = post_call_args[1]["url"] if "url" in post_call_args[1] else post_call_args[0][0]
         assert "/v2/agent" in str(post_url)
         
-        # Check request body
+        
         request_body = post_call_args[1]["json"]
         assert request_body["prompt"] == "Find the founders of Firecrawl"
         assert "schema" in request_body
         assert request_body["schema"]["type"] == "object"
         assert "founders" in request_body["schema"]["properties"]
         
-        # Verify get was called to check status
+        
         mock_get.assert_called()
         
-        # Check result
+        
         assert result.status == "completed"
         assert result.data is not None
 
@@ -103,7 +103,7 @@ class TestAgent(unittest.TestCase):
             schema={"type": "object", "properties": {"info": {"type": "string"}}}
         )
         
-        # Check request body includes URLs
+        
         post_call_args = mock_post.call_args
         request_body = post_call_args[1]["json"]
         assert request_body["urls"] == ["https://example.com", "https://test.com"]
@@ -136,7 +136,7 @@ class TestAgent(unittest.TestCase):
             schema=schema
         )
         
-        # Check request body includes schema
+        
         post_call_args = mock_post.call_args
         request_body = post_call_args[1]["json"]
         assert request_body["schema"] == schema
@@ -169,7 +169,7 @@ class TestAgent(unittest.TestCase):
             timeout=30
         )
         
-        # Check all parameters are in request body
+        
         post_call_args = mock_post.call_args
         request_body = post_call_args[1]["json"]
         assert request_body["prompt"] == "Complete test"
@@ -198,7 +198,7 @@ class TestAgent(unittest.TestCase):
             schema=FoundersSchema
         )
         
-        # Check that schema was normalized to JSON schema format
+        
         post_call_args = mock_post.call_args
         request_body = post_call_args[1]["json"]
         assert "schema" in request_body
@@ -212,7 +212,7 @@ class TestAgent(unittest.TestCase):
     @patch('firecrawl.v2.utils.http_client.requests.get')
     def test_agent_url_construction(self, mock_get, mock_post):
         """Test that agent requests are sent to correct URL."""
-        # Mock start agent response
+        
         mock_start_response = MagicMock()
         mock_start_response.ok = True
         mock_start_response.status_code = 200
@@ -223,7 +223,7 @@ class TestAgent(unittest.TestCase):
         }
         mock_post.return_value = mock_start_response
         
-        # Mock get status response
+        
         mock_status_response = MagicMock()
         mock_status_response.ok = True
         mock_status_response.status_code = 200
@@ -238,12 +238,12 @@ class TestAgent(unittest.TestCase):
         app = FirecrawlApp(api_key="test-api-key", api_url="https://api.firecrawl.dev")
         result = app.agent(prompt="Test prompt")
         
-        # Check POST URL - requests.post is called with url as keyword arg
+        
         post_call_args = mock_post.call_args
         post_url = post_call_args[1].get("url") if "url" in post_call_args[1] else post_call_args[0][0]
         assert "/v2/agent" in str(post_url)
         
-        # Check GET URL
+        
         get_call_args = mock_get.call_args
         get_url = get_call_args[1].get("url") if "url" in get_call_args[1] else get_call_args[0][0]
         assert "/v2/agent/test-agent-123" in str(get_url)
@@ -264,7 +264,7 @@ class TestAgent(unittest.TestCase):
         app = FirecrawlApp(api_key="test-api-key")
         result = app.agent(prompt="Test prompt")
         
-        # Check headers
+        
         post_call_args = mock_post.call_args
         headers = post_call_args[1]["headers"]
         assert "Authorization" in headers

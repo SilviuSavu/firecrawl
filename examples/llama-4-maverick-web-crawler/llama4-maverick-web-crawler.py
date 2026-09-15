@@ -4,7 +4,7 @@ import json
 from dotenv import load_dotenv
 from together import Together
 
-# ANSI color codes
+
 class Colors:
     CYAN = '\033[96m'
     YELLOW = '\033[93m'
@@ -14,18 +14,18 @@ class Colors:
     BLUE = '\033[94m'
     RESET = '\033[0m'
 
-# Load environment variables
+
 load_dotenv()
 
-# Retrieve API keys from environment variables
+
 firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
 together_api_key = os.getenv("TOGETHER_API_KEY")
 
-# Initialize the FirecrawlApp and Together client
+
 app = FirecrawlApp(api_key=firecrawl_api_key)
 client = Together(api_key=together_api_key)
 
-# Find the page that most likely contains the objective
+
 def find_relevant_page_via_map(objective, url, app, client):
     try:
         print(f"{Colors.CYAN}Understood. The objective is: {objective}{Colors.RESET}")
@@ -52,14 +52,14 @@ def find_relevant_page_via_map(objective, url, app, client):
         print(f"{Colors.YELLOW}Mapping website using the identified search parameter...{Colors.RESET}")
         map_website = app.map_url(url, params={"search": map_search_parameter})
         
-        # Debug print to see the response structure
+        
         print(f"{Colors.MAGENTA}Debug - Map response structure: {json.dumps(map_website, indent=2)}{Colors.RESET}")
         
         print(f"{Colors.GREEN}Website mapping completed successfully.{Colors.RESET}")
         
-        # Handle the response based on its structure
+        
         if isinstance(map_website, dict):
-            # Assuming the links are in a 'urls' or similar key
+            
             links = map_website.get('urls', []) or map_website.get('links', [])
         elif isinstance(map_website, str):
             try:
@@ -101,12 +101,12 @@ def find_relevant_page_via_map(objective, url, app, client):
             ]
         )
 
-        # Debug print to see LLM's raw response
+        
         print(f"{Colors.MAGENTA}Debug - LLM raw response:{Colors.RESET}")
         print(f"{Colors.MAGENTA}{completion.choices[0].message.content}{Colors.RESET}")
 
         try:
-            # Try to clean the response by stripping any potential markdown or extra whitespace
+            
             cleaned_response = completion.choices[0].message.content.strip()
             if cleaned_response.startswith("```json"):
                 cleaned_response = cleaned_response.split("```json")[1]
@@ -116,7 +116,7 @@ def find_relevant_page_via_map(objective, url, app, client):
             
             ranked_results = json.loads(cleaned_response)
             
-            # Validate the structure of the results
+            
             if not isinstance(ranked_results, list):
                 raise ValueError("Response is not a list")
             
@@ -126,7 +126,7 @@ def find_relevant_page_via_map(objective, url, app, client):
             
             links = [result["url"] for result in ranked_results]
             
-            # Print detailed ranking info
+            
             print(f"{Colors.CYAN}Top 3 ranked URLs:{Colors.RESET}")
             for result in ranked_results:
                 print(f"{Colors.GREEN}URL: {result['url']}{Colors.RESET}")
@@ -149,10 +149,10 @@ def find_relevant_page_via_map(objective, url, app, client):
         print(f"{Colors.RED}Error encountered during relevant page identification: {str(e)}{Colors.RESET}")
         return None
     
-# Scrape the top 3 pages and see if the objective is met, if so return in json format else return None
+
 def find_objective_in_top_pages(map_website, objective, app, client):
     try:
-        # Get top 3 links from the map result
+        
         if not map_website:
             print(f"{Colors.RED}No links found to analyze.{Colors.RESET}")
             return None
@@ -185,7 +185,7 @@ def find_objective_in_top_pages(map_website, objective, app, client):
             
             result = completion.choices[0].message.content.strip()
             
-            # Clean up the response if it contains markdown formatting
+            
             if result.startswith("```json"):
                 result = result.split("```json")[1]
             if result.endswith("```"):
@@ -212,19 +212,19 @@ def find_objective_in_top_pages(map_website, objective, app, client):
         print(f"{Colors.RED}Error encountered during page analysis: {str(e)}{Colors.RESET}")
         return None
 
-# Main function to execute the process
+
 def main():
-    # Get user input
+    
     url = input(f"{Colors.BLUE}Enter the website to crawl : {Colors.RESET}")
     objective = input(f"{Colors.BLUE}Enter your objective: {Colors.RESET}")
     
     print(f"{Colors.YELLOW}Initiating web crawling process...{Colors.RESET}")
-    # Find the relevant page
+    
     map_website = find_relevant_page_via_map(objective, url, app, client)
     
     if map_website:
         print(f"{Colors.GREEN}Relevant pages identified. Proceeding with detailed analysis using Llama 4 Maverick...{Colors.RESET}")
-        # Find objective in top pages
+        
         result = find_objective_in_top_pages(map_website, objective, app, client)
         
         if result:

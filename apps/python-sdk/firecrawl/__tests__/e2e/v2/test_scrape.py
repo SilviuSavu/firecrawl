@@ -23,14 +23,14 @@ class TestScrapeE2E:
 
     def _assert_valid_document(self, doc: Document):
         assert isinstance(doc, Document)
-        # At least one main content field should be present
+        
         assert (
             (doc.markdown is not None and len(doc.markdown) > 0)
             or (doc.html is not None and len(doc.html) > 0)
             or (doc.raw_html is not None and len(doc.raw_html) > 0)
             or (doc.summary is not None and len(doc.summary) > 0)
         )
-        # Metadata should exist with a source URL or title when available
+        
         assert doc.metadata is not None
 
     def test_scrape_minimal(self):
@@ -73,7 +73,7 @@ class TestScrapeE2E:
             "https://docs.firecrawl.dev",
             formats=[fmt],
         )
-        # For formats that are not content (links/screenshot/json), skip main-content assertion
+        
         if expect_field not in {"links", "screenshot"}:
             self._assert_valid_document(doc)
         if expect_field == "markdown":
@@ -102,12 +102,12 @@ class TestScrapeE2E:
             formats=[{"type": "json", "prompt": "Extract page title", "schema": json_schema}],
             only_main_content=True,
         )
-        # JSON format may not include main content fields; ensure request succeeded
+        
         assert isinstance(doc, Document)
-        # If backend returns extracted json content, it should be present under `json`
-        # (Do not fail if backend omits it; existence depends on implementation)
-        # if hasattr(doc, 'json'):
-        #     assert doc.json is not None
+        
+        
+        
+        
 
     def test_scrape_invalid_url(self):
         """Scrape should fail with empty or invalid URLs."""
@@ -164,7 +164,7 @@ class TestScrapeE2E:
         assert doc.images is not None
         assert isinstance(doc.images, list)
         assert len(doc.images) > 0
-        # Should find firecrawl logo/branding images
+        
         assert any("firecrawl" in img.lower() or "logo" in img.lower() for img in doc.images)
 
     def test_scrape_images_with_multiple_formats(self):
@@ -180,12 +180,12 @@ class TestScrapeE2E:
         assert isinstance(doc.images, list)
         assert len(doc.images) > 0
         
-        # Images should find content not available in links format
+        
         image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.ico']
         link_images = [
             link for link in (doc.links or [])
             if any(ext in link.lower() for ext in image_extensions)
         ]
         
-        # Should discover additional images beyond those with obvious extensions
+        
         assert len(doc.images) >= len(link_images)

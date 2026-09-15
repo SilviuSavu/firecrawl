@@ -1,0 +1,124 @@
+use_default_settings: true
+search:
+  safe_search: 0
+  autocomplete: ''
+  default_lang: ''
+  formats:
+  - html
+  - json
+server:
+  secret_key: ultrasecretkey
+  bind_address: 0.0.0.0
+  port: 8080
+outgoing:
+  request_timeout: 12.0
+  max_request_timeout: 30.0
+engines:
+- name: serpapi
+  engine: serpapi
+  disabled: true
+  timeout: 3600.0
+  weight: 0.4
+- name: tavily
+  engine: tavily
+  shortcut: tav
+  disabled: true
+  timeout: 3600.0
+  weight: 0.4
+- name: bravesearch
+  engine: bravesearch
+  shortcut: brvs
+  disabled: false
+  timeout: 12.0
+  weight: 0.4
+- name: exa
+  engine: exa
+  shortcut: exa
+  disabled: false
+  timeout: 12.0
+  weight: 0.4
+- name: bing
+  disabled: false
+  weight: 0.4
+- name: yandex
+  disabled: true
+  weight: 0.4
+- name: duckduckgo
+  disabled: false
+  weight: 0.4
+- name: brave
+  disabled: true
+  weight: 0.4
+- name: startpage
+  disabled: true
+  weight: 0.4
+- name: google cse
+  disabled: false
+  weight: 0.4
+- name: zimtitles
+  engine: zimtitles
+  timeout: 10.0
+  shortcut: zt
+  base_url: http://mac-mini-von-savu.netbird.selfhosted:7777
+  kiwix_url: http://mac-mini-von-savu.netbird.selfhosted:8181
+  reranker_url: http://host.docker.internal:8101
+  weight: 0.6
+  disabled: false
+  categories:
+  - general
+  - it
+  - offline
+  paging: false
+  enable_http: true
+- name: duckduckgo
+  disabled: true
+- name: google news
+  disabled: true
+- name: startpage images
+  disabled: true
+- name: startpage news
+  disabled: true
+- name: vimeo
+  disabled: true
+- name: kickass
+  disabled: true
+- name: solidtorrents
+  disabled: true
+- name: arch linux wiki
+  disabled: true
+- name: bandcamp
+  disabled: true
+- name: currency
+  disabled: true
+- name: deviantart
+  disabled: true
+- name: dictzone
+  disabled: true
+- name: etymonline
+  disabled: true
+- name: lingva
+  disabled: true
+- name: mymemory translated
+  disabled: true
+- name: pypi
+  disabled: true
+- name: wikidata
+  disabled: true
+- name: artic
+  timeout: 3600.0
+- name: devicons
+  timeout: 3600.0
+- name: gentoo
+  timeout: 3600.0
+- name: lucide
+  timeout: 3600.0
+- name: openairedatasets
+  timeout: 3600.0
+- name: openairepublications
+  timeout: 3600.0
+- name: piratebay
+  timeout: 3600.0
+- name: wordnik
+  timeout: 3600.0
+- name: wttr.in
+  timeout: 3600.0

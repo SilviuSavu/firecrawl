@@ -1,12 +1,12 @@
-# %%
-# %%
+
+
 import os
 import requests
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
-# ANSI color codes
+
 class Colors:
     CYAN = '\033[96m'
     YELLOW = '\033[93m'
@@ -15,17 +15,17 @@ class Colors:
     MAGENTA = '\033[95m'
     BLUE = '\033[94m'
     RESET = '\033[0m'
-# Load environment variables
+
 load_dotenv()
 
-# Initialize the FirecrawlApp with your API key
+
 firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Set the jobs page URL
+
 jobs_page_url = "https://openai.com/careers/search"
 
-# Resume
+
 resume_paste = """"
 Eric Ciarla
 Co-Founder @ Firecrawl
@@ -90,7 +90,7 @@ University of New Hampshire
 Economics and Philosophy
 """
 
-# First, scrape the jobs page using Firecrawl
+
 try:
     response = requests.post(
         "https://api.firecrawl.dev/v1/scrape",
@@ -108,7 +108,7 @@ try:
         result = response.json()
         if result.get('success'):
             html_content = result['data']['markdown']
-            # Define the O1 prompt for extracting apply links
+            
             prompt = f"""
             Extract up to 30 job application links from the given markdown content.
             Return the result as a JSON object with a single key 'apply_links' containing an array of strings (the links).
@@ -139,7 +139,7 @@ except Exception as e:
     print(f"{Colors.RED}An unexpected error occurred while scraping: {str(e)}{Colors.RESET}")
     html_content = ""
 
-# Extract apply links from the scraped HTML using O1
+
 apply_links = []
 if html_content:
     try:
@@ -170,17 +170,17 @@ if html_content:
 else:
     print(f"{Colors.RED}No HTML content to process{Colors.RESET}")
 
-# Initialize a list to store the extracted data
+
 extracted_data = []
 
 
-# %%
+
 print(f"{Colors.CYAN}Apply links:{Colors.RESET}")
 for link in apply_links:
     print(f"{Colors.YELLOW}{link}{Colors.RESET}")
 
-# %%
-# Process each apply link
+
+
 for index, link in enumerate(apply_links):
     try:
         response = requests.post(
@@ -226,21 +226,21 @@ for index, link in enumerate(apply_links):
         print(f"")
 
 
-# %%
-# %%
-# Print the extracted data
+
+
+
 print(f"{Colors.CYAN}Extracted data:{Colors.RESET}")
 for job in extracted_data:
     print(json.dumps(job, indent=2))
     print(f"{Colors.MAGENTA}{'-' * 50}{Colors.RESET}")
 
 
-# %%
 
 
 
 
-# Use o1-preview to choose which jobs should be applied to based on the resume
+
+
 prompt = f"""
 Please analyze the resume and job listings, and return a JSON list of the top 3 roles that best fit the candidate's experience and skills. Include only the job title, compensation, and apply link for each recommended role. The output should be a valid JSON array of objects in the following format, with no additional text:
 

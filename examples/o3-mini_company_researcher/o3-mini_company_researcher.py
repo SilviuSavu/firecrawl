@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from serpapi.google_search import GoogleSearch
 
-# ANSI color codes
+
 class Colors:
     CYAN = '\033[96m'
     YELLOW = '\033[93m'
@@ -16,10 +16,10 @@ class Colors:
     BLUE = '\033[94m'
     RESET = '\033[0m'
 
-# Load environment variables
+
 load_dotenv()
 
-# Initialize clients
+
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
 serp_api_key = os.getenv("SERP_API_KEY")
@@ -36,7 +36,7 @@ def select_urls_with_r1(company, objective, serp_results):
     Returns a list of URLs.
     """
     try:
-        # Prepare the data for o3-mini (keeping R1's structure)
+        
         serp_data = [{"title": r.get("title"), "link": r.get("link"), "snippet": r.get("snippet")} 
                      for r in serp_results if r.get("link")]
 
@@ -61,22 +61,22 @@ def select_urls_with_r1(company, objective, serp_results):
         )
 
         try:
-            # First try to parse as JSON
+            
             result = json.loads(response.choices[0].message.content)
             if isinstance(result, dict) and "selected_urls" in result:
                 urls = result["selected_urls"]
             else:
-                # If JSON doesn't have the expected structure, fall back to text parsing
+                
                 response_text = response.choices[0].message.content
                 urls = [line.strip() for line in response_text.split('\n') 
                        if line.strip().startswith(('http://', 'https://'))]
         except json.JSONDecodeError:
-            # If JSON parsing fails, fall back to text parsing
+            
             response_text = response.choices[0].message.content
             urls = [line.strip() for line in response_text.split('\n') 
                    if line.strip().startswith(('http://', 'https://'))]
 
-        # Clean up URLs - remove wildcards and trailing slashes
+        
         cleaned_urls = [url.replace('/*', '').rstrip('/') for url in urls]
         cleaned_urls = [url for url in cleaned_urls if url]
 
@@ -182,7 +182,7 @@ def main():
         print(f"{Colors.RED}No search results found.{Colors.RESET}")
         return
     
-    # Use R1's URL selection approach with o3-mini model
+    
     selected_urls = select_urls_with_r1(company, objective, serp_results)
     
     if not selected_urls:

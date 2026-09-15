@@ -225,7 +225,7 @@ class TestResolveRefs(unittest.TestCase):
             }
         }
         result = resolve_refs(schema, defs)
-        # Result should be a dict with type: array and resolved items
+        
         self.assertIsInstance(result, dict)
         self.assertEqual(result["type"], "array")
         self.assertIn("items", result)
@@ -240,7 +240,7 @@ class TestResolveRefs(unittest.TestCase):
             "D": {"type": "string"}
         }
         result = resolve_refs(schema, defs, depth=0)
-        # Should resolve until depth limit
+        
         self.assertIsNotNone(result)
     
     def test_resolve_refs_with_circular_ref(self):
@@ -258,7 +258,7 @@ class TestResolveRefs(unittest.TestCase):
                 }
             }
         }
-        # Should not throw error, but may preserve $ref
+        
         result = resolve_refs(schema, defs)
         self.assertIsNotNone(result)
     
@@ -674,8 +674,8 @@ class TestValidateJsonFormat(unittest.TestCase):
             }
         }
         result = _validate_json_format(format_obj)
-        # After resolution, $defs should be removed if all refs are resolved
-        # The exact behavior depends on implementation
+        
+        
         self.assertIn("schema", result)
 
 
@@ -707,7 +707,7 @@ class TestEdgeCases(unittest.TestCase):
             }
         }
         result = normalize_schema_for_openai(schema)
-        # Should normalize deeply nested schema
+        
         self.assertIsNotNone(result)
     
     def test_circular_reference_doesnt_hang(self):
@@ -724,7 +724,7 @@ class TestEdgeCases(unittest.TestCase):
                 }
             }
         }
-        # Should complete without hanging
+        
         result = normalize_schema_for_openai(schema)
         self.assertIsNotNone(result)
         
@@ -764,7 +764,7 @@ class TestRecursionStressTests(unittest.TestCase):
     
     def test_very_deep_reference_chain(self):
         """Test handling of very deep reference chains (testing depth limits)."""
-        # Create a chain of 20 references
+        
         defs = {}
         for i in range(20):
             if i == 19:
@@ -777,11 +777,11 @@ class TestRecursionStressTests(unittest.TestCase):
             "$defs": defs
         }
         
-        # Should handle without crashing (may not fully resolve due to depth limits)
+        
         result = resolve_refs(schema, defs)
         self.assertIsNotNone(result)
         
-        # Normalization should also complete
+        
         normalized = normalize_schema_for_openai(schema)
         self.assertIsNotNone(normalized)
     
@@ -806,11 +806,11 @@ class TestRecursionStressTests(unittest.TestCase):
             }
         }
         
-        # Should detect circular references
+        
         has_circular = _check_for_circular_defs(defs)
         self.assertTrue(has_circular)
         
-        # Should handle normalization without hanging
+        
         schema = {"$ref": "#/$defs/Node", "$defs": defs}
         result = normalize_schema_for_openai(schema)
         self.assertIsNotNone(result)
@@ -839,12 +839,12 @@ class TestRecursionStressTests(unittest.TestCase):
             }
         }
         
-        # Should handle complex recursive patterns
+        
         result = normalize_schema_for_openai(schema)
         self.assertIsNotNone(result)
         self.assertIn("oneOf", result)
         
-        # Should validate without errors
+        
         is_valid = validate_schema_for_openai(schema)
         self.assertTrue(is_valid)
     
@@ -860,7 +860,7 @@ class TestRecursionStressTests(unittest.TestCase):
             }
         }
         
-        # Should handle gracefully without crashing
+        
         result = resolve_refs(schema, schema.get("$defs", {}))
         self.assertIsNotNone(result)
         
@@ -874,11 +874,11 @@ class TestRecursionStressTests(unittest.TestCase):
             "properties": {
                 "bad1": {"$ref": "not-a-valid-ref"},
                 "bad2": {"$ref": "#/wrong/path"},
-                "bad3": {"$ref": 12345}  # Not even a string
+                "bad3": {"$ref": 12345}  
             }
         }
         
-        # Should handle without crashing
+        
         result = normalize_schema_for_openai(schema)
         self.assertIsNotNone(result)
     
@@ -911,15 +911,15 @@ class TestRecursionStressTests(unittest.TestCase):
             }
         }
         
-        # Should detect recursion
+        
         is_recursive = detect_recursive_schema(schema)
         self.assertTrue(is_recursive)
         
-        # Should select appropriate model
+        
         model_info = select_model_for_schema(schema)
         self.assertEqual(model_info["modelName"], "gpt-4o")
         
-        # Should handle normalization
+        
         result = normalize_schema_for_openai(schema)
         self.assertIsNotNone(result)
     
@@ -962,15 +962,15 @@ class TestRecursionStressTests(unittest.TestCase):
             }
         }
         
-        # Should detect circular references
+        
         has_circular = _check_for_circular_defs(schema.get("$defs", {}))
         self.assertTrue(has_circular)
         
-        # Should handle without hanging
+        
         result = normalize_schema_for_openai(schema)
         self.assertIsNotNone(result)
         
-        # Should validate
+        
         is_valid = validate_schema_for_openai(schema)
         self.assertTrue(is_valid)
     
@@ -997,11 +997,11 @@ class TestRecursionStressTests(unittest.TestCase):
             }
         }
         
-        # Should detect circular references
+        
         has_circular = _check_for_circular_defs(defs)
         self.assertTrue(has_circular)
         
-        # Should handle without hanging
+        
         schema = {"$ref": "#/$defs/TypeA", "$defs": defs}
         result = normalize_schema_for_openai(schema)
         self.assertIsNotNone(result)
@@ -1020,10 +1020,10 @@ class TestRecursionStressTests(unittest.TestCase):
         
         result = normalize_schema_for_openai(schema)
         
-        # Should clean up required when properties are fully defined
+        
         self.assertIn("required", result)
         self.assertEqual(result["required"], ["name", "age"])
-        # additionalProperties: true should be removed
+        
         self.assertNotIn("additionalProperties", result)
     
     def test_required_fields_in_nested_defs(self):
@@ -1048,16 +1048,16 @@ class TestRecursionStressTests(unittest.TestCase):
         
         result = normalize_schema_for_openai(schema)
         
-        # $defs definitions should be cleaned
+        
         self.assertIn("$defs", result)
         self.assertIn("Node", result["$defs"])
         node_def = result["$defs"]["Node"]
         
-        # Required should be cleaned in the definition
+        
         self.assertIn("required", node_def)
         self.assertEqual(node_def["required"], ["value"])
         
-        # additionalProperties: true should be removed
+        
         self.assertNotIn("additionalProperties", node_def)
     
     def test_required_fields_cleanup_limitation_with_defs(self):
@@ -1075,7 +1075,7 @@ class TestRecursionStressTests(unittest.TestCase):
                 "name": {"type": "string"},
                 "child": {"$ref": "#/$defs/Node"}
             },
-            "required": ["name", "child", "nonexistent_field"],  # Has invalid field
+            "required": ["name", "child", "nonexistent_field"],  
             "$defs": {
                 "Node": {
                     "type": "object",
@@ -1088,13 +1088,13 @@ class TestRecursionStressTests(unittest.TestCase):
         
         result = normalize_schema_for_openai(schema)
         
-        # Current behavior: required is NOT cleaned at root when $defs present
-        # This is because the code returns early when processing $defs
+        
+        
         self.assertIn("required", result)
-        # Documents current behavior - includes invalid field
+        
         self.assertIn("nonexistent_field", result["required"])
         
-        # Note: If this behavior should change, update both the code and this test
+        
     
     def test_same_object_referenced_multiple_times(self):
         """Test that the same object referenced multiple times is handled correctly."""
@@ -1117,11 +1117,11 @@ class TestRecursionStressTests(unittest.TestCase):
             }
         }
         
-        # Should handle without issues
+        
         result = resolve_refs(schema, schema.get("$defs", {}))
         self.assertIsNotNone(result)
         
-        # All three should be resolved
+        
         if "properties" in result:
             self.assertIn("person1", result["properties"])
             self.assertIn("person2", result["properties"])

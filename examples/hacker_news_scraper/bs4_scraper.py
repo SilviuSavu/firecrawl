@@ -54,13 +54,13 @@ def get_news_data():
     news_data = []
 
     for title_row, subtext_row in zip(title_rows, subtext_rows):
-        # Extract title information from the title row
+        
         title_span = title_row.find("span", {"class": "titleline"})
         title = title_span.a.text
         url = title_span.a["href"]
         rank = title_row.find("span", {"class": "rank"}).text
 
-        # Extract metadata from the subtext row
+        
         author = BASE_URL + subtext_row.find("a", {"class": "hnuser"})["href"]
         upvotes = subtext_row.find("span", {"class": "score"}).text
         date = subtext_row.find("span", {"class": "age"}).get("title").split(" ")[0]

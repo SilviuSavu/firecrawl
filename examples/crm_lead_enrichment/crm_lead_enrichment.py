@@ -5,10 +5,10 @@ from openai import OpenAI
 from hubspot import HubSpot
 from firecrawl import FirecrawlApp
 
-# Load environment variables
+
 load_dotenv()
 
-# Initialize clients
+
 def initialize_clients():
     firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
     openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -20,7 +20,7 @@ def initialize_clients():
     
     return openai_client, hubspot_client, firecrawl_client
 
-# Get list of companies from HubSpot
+
 def get_companies_from_hubspot(hubspot_client):
     companies = []
     after = None
@@ -40,7 +40,7 @@ def get_companies_from_hubspot(hubspot_client):
             break
     return [company for company in companies if company.properties.get("website")]
 
-# Scrape URL using Firecrawl
+
 def scrape_url(firecrawl_client, url):
     try:
         return firecrawl_client.scrape_url(url, params={'formats': ['markdown']})
@@ -48,7 +48,7 @@ def scrape_url(firecrawl_client, url):
         print(f"Error scraping URL {url}: {str(e)}")
         return None
 
-# Extract information using OpenAI
+
 def extract_info(openai_client, content):
     prompt = f"""
     Based on the markdown content, extract the following information in JSON format: 
@@ -81,7 +81,7 @@ def extract_info(openai_client, content):
         print(completion.choices[0].message.content)
         return None
 
-# Update company properties in HubSpot
+
 def update_hubspot(hubspot_client, company, extracted_info):
     try:
         hubspot_client.crm.companies.basic_api.update(
@@ -99,7 +99,7 @@ def update_hubspot(hubspot_client, company, extracted_info):
     except Exception as e:
         print(f"Error updating HubSpot for company {company.properties['name']}: {str(e)}")
 
-# Main process
+
 def main():
     openai_client, hubspot_client, firecrawl_client = initialize_clients()
     companies = get_companies_from_hubspot(hubspot_client)

@@ -31,18 +31,18 @@ class HttpClient:
         base = urlparse(self.api_url)
         ep = urlparse(endpoint)
 
-        # Absolute or protocol-relative (has netloc)
+        
         if ep.netloc:
-            # Different host: keep path/query but force base host/scheme (no token leakage)
+            
             path = ep.path or "/"
             if (ep.hostname or "") != (base.hostname or ""):
                 return urlunparse((base.scheme or "https", base.netloc, path, "", ep.query, ""))
-            # Same host: normalize scheme to base
+            
             return urlunparse((base.scheme or "https", base.netloc, path, "", ep.query, ""))
 
-        # Relative (including leading slash or not)
+        
         base_str = self.api_url if self.api_url.endswith("/") else f"{self.api_url}/"
-        # Guard protocol-relative like //host/path slipping through as “relative”
+        
         if endpoint.startswith("//"):
             ep2 = urlparse(f"https:{endpoint}")
             path = ep2.path or "/"
@@ -117,7 +117,7 @@ class HttpClient:
                     raise e
                 time.sleep(backoff_factor * (2 ** attempt))
 
-        # This should never be reached due to the exception handling above
+        
         raise last_exception or Exception("Unexpected error in POST request")
 
     def post_multipart(
@@ -215,7 +215,7 @@ class HttpClient:
                     raise e
                 time.sleep(backoff_factor * (2 ** attempt))
 
-        # This should never be reached due to the exception handling above
+        
         raise last_exception or Exception("Unexpected error in GET request")
     
     def delete(
@@ -262,7 +262,7 @@ class HttpClient:
                     raise e
                 time.sleep(backoff_factor * (2 ** attempt))
 
-        # This should never be reached due to the exception handling above
+        
         raise last_exception or Exception("Unexpected error in DELETE request")
 
     def patch(

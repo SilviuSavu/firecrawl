@@ -9,21 +9,21 @@ class TestMapRequestPreparation:
     def test_basic_request_preparation(self):
         data = _prepare_map_request("https://example.com")
         assert data["url"] == "https://example.com"
-        # Default sitemap handling should be "include" when no flags provided
-        assert "sitemap" not in data  # we only send when options provided
+        
+        assert "sitemap" not in data  
 
     def test_sitemap_transformations(self):
-        # sitemap -> "only"
+        
         opts = MapOptions(sitemap="only")
         data = _prepare_map_request("https://example.com", opts)
         assert data["sitemap"] == "only"
 
-        # sitemap -> "skip"
+        
         opts = MapOptions(sitemap="skip")
         data = _prepare_map_request("https://example.com", opts)
         assert data["sitemap"] == "skip"
 
-        # default when options present but sitemap left as default -> include
+        
         opts = MapOptions(search="docs")
         data = _prepare_map_request("https://example.com", opts)
         assert data["sitemap"] == "include"

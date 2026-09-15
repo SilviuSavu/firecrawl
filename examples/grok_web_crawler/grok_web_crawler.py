@@ -4,7 +4,7 @@ import json
 from dotenv import load_dotenv
 import requests
 
-# ANSI color codes
+
 class Colors:
     CYAN = '\033[96m'
     YELLOW = '\033[93m'
@@ -14,17 +14,17 @@ class Colors:
     BLUE = '\033[94m'
     RESET = '\033[0m'
 
-# Load environment variables
+
 load_dotenv()
 
-# Retrieve API keys from environment variables
+
 firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
 grok_api_key = os.getenv("GROK_API_KEY")
 
-# Initialize the FirecrawlApp
+
 app = FirecrawlApp(api_key=firecrawl_api_key)
 
-# Function to make Grok API calls
+
 def grok_completion(prompt):
     url = "https://api.x.ai/v1/chat/completions"
     headers = {
@@ -49,7 +49,7 @@ def grok_completion(prompt):
     response = requests.post(url, headers=headers, json=data)
     return response.json()['choices'][0]['message']['content']
 
-# Find the page that most likely contains the objective
+
 def find_relevant_page_via_map(objective, url, app):
     try:
         print(f"{Colors.CYAN}Understood. The objective is: {objective}{Colors.RESET}")
@@ -74,22 +74,22 @@ def find_relevant_page_via_map(objective, url, app):
         print(f"{Colors.RED}Error encountered during relevant page identification: {str(e)}{Colors.RESET}")
         return None
     
-# Scrape the top 3 pages and see if the objective is met, if so return in json format else return None
+
 def find_objective_in_top_pages(map_website, objective, app):
     try:
         print(f"{Colors.MAGENTA}{map_website}{Colors.RESET}")
-        # Get top 3 links from the map result
+        
         top_links = map_website[:3] if isinstance(map_website, list) else []
         print(f"{Colors.CYAN}Proceeding to analyze top {len(top_links)} links: {top_links}{Colors.RESET}")
         
         for link in top_links:
             print(f"{Colors.YELLOW}Initiating scrape of page: {link}{Colors.RESET}")
-            # Scrape the page
+            
             scrape_result = app.scrape_url(link, params={'formats': ['markdown']})
             print(f"{Colors.GREEN}Page scraping completed successfully.{Colors.RESET}")
      
             
-            # Check if objective is met
+            
             check_prompt = f"""
             Given the following scraped content and objective, determine if the objective is met.
             If it is, extract the relevant information in a simple and concise JSON format. Use only the necessary fields and avoid nested structures if possible.
@@ -123,19 +123,19 @@ def find_objective_in_top_pages(map_website, objective, app):
         print(f"{Colors.RED}Error encountered during page analysis: {str(e)}{Colors.RESET}")
         return None
 
-# Main function to execute the process
+
 def main():
-    # Get user input
+    
     url = input(f"{Colors.BLUE}Enter the website to crawl: {Colors.RESET}")
     objective = input(f"{Colors.BLUE}Enter your objective: {Colors.RESET}")
     
     print(f"{Colors.YELLOW}Initiating web crawling process...{Colors.RESET}")
-    # Find the relevant page
+    
     map_website = find_relevant_page_via_map(objective, url, app)
     
     if map_website:
         print(f"{Colors.GREEN}Relevant pages identified. Proceeding with detailed analysis...{Colors.RESET}")
-        # Find objective in top pages
+        
         result = find_objective_in_top_pages(map_website, objective, app)
         
         if result:

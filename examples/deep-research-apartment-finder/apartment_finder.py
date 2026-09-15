@@ -8,7 +8,7 @@ import anthropic
 from firecrawl import FirecrawlApp
 from dotenv import load_dotenv
 
-# Define colors for terminal output
+
 class Colors:
     CYAN = '\033[96m'
     YELLOW = '\033[93m'
@@ -19,7 +19,7 @@ class Colors:
     BOLD = '\033[1m'
     RESET = '\033[0m'
 
-# Load environment variables
+
 load_dotenv()
 
 FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY")
@@ -30,7 +30,7 @@ if not FIRECRAWL_API_KEY or not ANTHROPIC_API_KEY:
     print(f"{Colors.YELLOW}You can create a .env file with these variables or set them in your shell.{Colors.RESET}")
     sys.exit(1)
 
-# Initialize clients
+
 firecrawl = FirecrawlApp(api_key=FIRECRAWL_API_KEY)
 claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -39,7 +39,7 @@ def get_user_preferences():
     print(f"\n{Colors.BOLD}{Colors.CYAN}=== Apartment Finder ==={Colors.RESET}")
     print(f"{Colors.CYAN}Please enter your apartment search preferences:{Colors.RESET}")
     
-    # Get required inputs
+    
     location = input(f"\n{Colors.YELLOW}Enter location (city or neighborhood): {Colors.RESET}")
     while not location.strip():
         location = input(f"{Colors.RED}Location cannot be empty. Please enter a location: {Colors.RESET}")
@@ -50,7 +50,7 @@ def get_user_preferences():
     if not budget.startswith('$'):
         budget = f"${budget}"
     
-    # Get optional inputs with defaults
+    
     bedrooms = input(f"{Colors.YELLOW}Enter number of bedrooms (default: 1): {Colors.RESET}") or "1"
     
     amenities = input(f"{Colors.YELLOW}Enter desired amenities, separated by commas (e.g., gym,pool,parking): {Colors.RESET}") or ""
@@ -72,14 +72,14 @@ def research_apartments(query: str) -> Dict[str, Any]:
     print(f"{Colors.BLUE}Researching apartments with query: '{query}'{Colors.RESET}")
     print(f"{Colors.BLUE}This may take a few minutes...{Colors.RESET}\n")
     
-    # Define research parameters
+    
     params = {
-        "maxDepth": 3,  # Number of research iterations
-        "timeLimit": 180,  # Time limit in seconds
-        "maxUrls": 20  # Maximum URLs to analyze
+        "maxDepth": 3,  
+        "timeLimit": 180,  
+        "maxUrls": 20  
     }
     
-    # Start research with real-time updates
+    
     def on_activity(activity):
         activity_type = activity['type']
         message = activity['message']
@@ -97,7 +97,7 @@ def research_apartments(query: str) -> Dict[str, Any]:
             
         print(f"[{color}{activity_type}{Colors.RESET}] {message}")
     
-    # Run deep research
+    
     results = firecrawl.deep_research(
         query=query,
         params=params,
@@ -110,18 +110,18 @@ def analyze_with_claude(research_results: Dict[str, Any], user_prefs: Dict[str, 
     """Use Claude to analyze apartment data and extract top options"""
     print(f"\n{Colors.BOLD}{Colors.MAGENTA}🧠 ANALYZING RESULTS WITH CLAUDE 3.7 🧠{Colors.RESET}")
     
-    # Extract relevant information from sources
+    
     sources_text = "\n\n".join([
         f"Source {i+1}:\n{source.get('content', '')}"
-        for i, source in enumerate(research_results['data']['sources'][:15])  # Limit to first 15 sources
+        for i, source in enumerate(research_results['data']['sources'][:15])  
     ])
     
-    # Add the final analysis as an additional source
+    
     final_analysis = research_results['data'].get('finalAnalysis', '')
     if final_analysis:
         sources_text += f"\n\nFinal Analysis:\n{final_analysis}"
     
-    # Prepare system prompt with better handling for limited data
+    
     system_prompt = """
     You are an expert apartment finder assistant. Your task is to analyze text about apartments and find the top apartment options that best match the user's preferences.
     
@@ -166,7 +166,7 @@ def analyze_with_claude(research_results: Dict[str, Any], user_prefs: Dict[str, 
     Return ONLY the JSON array, nothing else.
     """
     
-    # Create the user message
+    
     user_message = f"""
     I'm looking for {user_prefs['bedrooms']} bedroom apartments in {user_prefs['location']} with a budget of {user_prefs['budget']}.
     
@@ -177,7 +177,7 @@ def analyze_with_claude(research_results: Dict[str, Any], user_prefs: Dict[str, 
     {sources_text}
     """
     
-    # Call Claude API
+    
     response = claude.messages.create(
         model="claude-3-7-sonnet-20250219",
         max_tokens=4000,
@@ -186,11 +186,11 @@ def analyze_with_claude(research_results: Dict[str, Any], user_prefs: Dict[str, 
         messages=[{"role": "user", "content": user_message}]
     )
     
-    # Extract and parse JSON from response with better error handling
+    
     try:
         content = response.content[0].text
         
-        # Clean the content - strip markdown formatting or text before/after JSON
+        
         content = content.strip()
         if content.startswith('```json'):
             content = content[7:]
@@ -198,18 +198,18 @@ def analyze_with_claude(research_results: Dict[str, Any], user_prefs: Dict[str, 
             content = content[:-3]
         content = content.strip()
         
-        # Look for JSON array in the response
+        
         if content.startswith('[') and content.endswith(']'):
             return json.loads(content)
         
-        # Try to find JSON brackets if not properly formatted
+        
         json_start = content.find('[')
         json_end = content.rfind(']') + 1
         if json_start >= 0 and json_end > json_start:
             json_str = content[json_start:json_end]
             return json.loads(json_str)
         
-        # If we can't find JSON, create a fallback response
+        
         print(f"{Colors.YELLOW}Could not find valid JSON in Claude's response, creating fallback response{Colors.RESET}")
         return [{
             "title": "No specific listings found",
@@ -267,26 +267,26 @@ def display_results(apartments: List[Dict[str, Any]]):
         print(f"\n{Colors.CYAN}{'-' * 80}{Colors.RESET}")
 
 def main():
-    # Get user preferences through interactive input
+    
     user_prefs = get_user_preferences()
     
-    # Print summary of search criteria
+    
     print(f"\n{Colors.BOLD}{Colors.CYAN}=== Search Criteria ==={Colors.RESET}")
     print(f"{Colors.BLUE}Location: {Colors.YELLOW}{user_prefs['location']}{Colors.RESET}")
     print(f"{Colors.BLUE}Budget: {Colors.YELLOW}{user_prefs['budget']}{Colors.RESET}")
     print(f"{Colors.BLUE}Bedrooms: {Colors.YELLOW}{user_prefs['bedrooms']}{Colors.RESET}")
     print(f"{Colors.BLUE}Amenities: {Colors.YELLOW}{user_prefs['amenities'] or 'None specified'}{Colors.RESET}")
     
-    # Build search query
+    
     query = build_search_query(user_prefs)
     
-    # Run research
+    
     research_results = research_apartments(query)
     
-    # Analyze with Claude
+    
     top_apartments = analyze_with_claude(research_results, user_prefs)
     
-    # Display results
+    
     display_results(top_apartments)
 
 if __name__ == "__main__":

@@ -35,14 +35,14 @@ class AsyncWatcher:
         self._job_id = job_id
         self._kind = kind
         self._timeout = timeout
-        self._poll_interval: float = max(0.0, float(poll_interval))  # Guard against negative values
+        self._poll_interval: float = max(0.0, float(poll_interval))  
 
         http_client = getattr(client, "http_client", None)
         if http_client is not None:
             self._api_url = getattr(http_client, "api_url", None)
             self._api_key = getattr(http_client, "api_key", None)
         else:
-            # Allow passing the top-level Firecrawl client directly
+            
             self._api_url = getattr(client, "api_url", None)
             self._api_key = getattr(client, "api_key", None)
 
@@ -66,11 +66,11 @@ class AsyncWatcher:
         if self._api_key:
             headers_list.append(("Authorization", f"Bearer {self._api_key}"))
 
-        # Attempt to establish WS; on failure, fall back to HTTP polling immediately
+        
         try:
             async with websockets.connect(uri, max_size=None, additional_headers=headers_list) as websocket:
                 deadline = asyncio.get_event_loop().time() + self._timeout if self._timeout else None
-                # Pre-yield a snapshot if available to ensure progress is visible
+                
                 try:
                     pre = await self._fetch_job_status()
                     yield pre
@@ -88,7 +88,7 @@ class AsyncWatcher:
                             timeout = self._poll_interval
                         msg = await asyncio.wait_for(websocket.recv(), timeout=timeout)
                     except asyncio.TimeoutError:
-                        # Quiet period: poll HTTP once
+                        
                         job = await self._safe_fetch()
                         if job is not None:
                             yield job
@@ -98,7 +98,7 @@ class AsyncWatcher:
                             return
                         continue
                     except (ConnectionClosedOK, ConnectionClosed, ConnectionClosedError):
-                        # Graceful/abrupt close: poll HTTP until terminal (bounded by timeout)
+                        
                         deadline = time.time() + (self._timeout or 30)
                         while True:
                             try:
@@ -119,7 +119,7 @@ class AsyncWatcher:
                     msg_type = body.get("type")
                     if msg_type == "error":
                         self._status = "failed"
-                        # Yield a terminal snapshot
+                        
                         if self._kind == "crawl":
                             yield CrawlJob(status="failed", completed=0, total=0, credits_used=0, expires_at=None, next=None, data=[])
                         else:
@@ -130,12 +130,12 @@ class AsyncWatcher:
                         self._status = d.get("status", self._status)
                         docs_in = d.get("data", []) or []
                         self._data.extend(docs_in)
-                        # Fall through to emit a snapshot below
+                        
                     elif msg_type == "document":
                         doc = body.get("data")
                         if isinstance(doc, dict):
                             self._data.append(doc)
-                        # Fall through to emit a snapshot below
+                        
                     elif msg_type == "done":
                         self._status = "completed"
                         raw_payload = body.get("data", {}) or {}
@@ -144,11 +144,11 @@ class AsyncWatcher:
                             for doc in docs_in:
                                 if isinstance(doc, dict):
                                     self._data.append(doc)
-                        # Emit final snapshot then end
+                        
                         yield self._make_snapshot(status="completed", payload=raw_payload, docs_override=self._data)
                         return
 
-                    # Generic snapshot emit for status messages and periodic progress
+                    
                     payload = body.get("data", body)
                     status_str = payload.get("status", body.get("status", self._status))
                     snapshot = self._make_snapshot(status=status_str, payload=payload)
@@ -156,7 +156,7 @@ class AsyncWatcher:
                     if status_str in ("completed", "failed", "cancelled"):
                         return
         except Exception:
-            # WS connect failure: fallback to HTTP polling loop until terminal/timeout
+            
             deadline = time.time() + (self._timeout or 30)
             while True:
                 try:
@@ -176,7 +176,7 @@ class AsyncWatcher:
         return await self._call_status_method("get_batch_scrape_status")
 
     async def _call_status_method(self, method_name: str):
-        # Try on client directly
+        
         meth = getattr(self._client, method_name, None)
         if meth is not None:
             try:
@@ -187,10 +187,10 @@ class AsyncWatcher:
                 if inspect.isawaitable(result):
                     return await result
                 return result
-            # Fallback: if we couldn't call directly, try to_thread
+            
             return await asyncio.to_thread(meth, self._job_id)
 
-        # Try on client.v2
+        
         v2 = getattr(self._client, "v2", None)
         if v2 is not None:
             meth = getattr(v2, method_name, None)

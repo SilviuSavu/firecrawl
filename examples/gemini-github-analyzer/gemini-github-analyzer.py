@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from google import genai
 from datetime import datetime
 
-# ANSI color codes
+
 class Colors:
     CYAN = '\033[96m'
     YELLOW = '\033[93m'
@@ -18,7 +18,7 @@ class Colors:
     UNDERLINE = '\033[4m'
     RESET = '\033[0m'
 
-# Emojis for different sections
+
 class Emojis:
     GITHUB = "🐙"
     STATS = "📊"
@@ -36,10 +36,10 @@ class Emojis:
     GRAPH = "📊"
     TARGET = "🎯"
 
-# Load environment variables
+
 load_dotenv()
 
-# Initialize clients
+
 client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
 
@@ -74,7 +74,7 @@ def poll_extraction_result(extraction_id, api_key, interval=2, max_attempts=15):
                 print(f"{Colors.GREEN}Data extracted successfully!{Colors.RESET}")
                 return data['data']
             elif data.get('success'):
-                if attempt % 3 == 0:  # Print progress less frequently
+                if attempt % 3 == 0:  
                     print(".", end="", flush=True)
                 time.sleep(interval)
             else:
@@ -104,7 +104,7 @@ def extract_github_profile(username, api_key):
 
     github_url = f"https://github.com/{username}"
     
-    # Simplified prompt for faster extraction
+    
     payload = {
         "urls": [github_url],
         "prompt": """Extract key GitHub profile data:
@@ -196,7 +196,7 @@ def analyze_with_gemini(profile_data, username):
             contents=prompt
         )
         
-        # Clean up response
+        
         analysis = response.text.strip()
         analysis_lines = [line for line in analysis.split('\n') 
                          if not any(word in line.lower() 
@@ -239,7 +239,7 @@ def save_report(report, username):
     filename = f"github_analysis_{username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
     try:
         with open(filename, 'w', encoding='utf-8') as f:
-            # Strip ANSI color codes when saving to file
+            
             clean_report = report
             for color in vars(Colors).values():
                 if isinstance(color, str) and color.startswith('\033'):

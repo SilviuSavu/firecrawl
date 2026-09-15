@@ -1,4 +1,4 @@
-# firecrawl_scraper.py
+
 import json
 from firecrawl import FirecrawlApp
 from dotenv import load_dotenv
@@ -44,13 +44,13 @@ def save_firecrawl_news_data():
     """
     Save the scraped news data to a JSON file with the current date in the filename.
     """
-    # Get the data
+    
     data = get_firecrawl_news_data()
-    # Format current date for filename
+    
     date_str = datetime.now().strftime("%Y_%m_%d_%H_%M")
     filename = f"firecrawl_hacker_news_data_{date_str}.json"
 
-    # Save the news items to JSON file
+    
     with open(filename, "w") as f:
         json.dump(data["extract"]["news_items"], f, indent=4)
 

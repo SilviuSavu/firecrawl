@@ -18,7 +18,7 @@ class TestWatcherE2E:
         self.client = Firecrawl(api_key=os.getenv("API_KEY"), api_url=os.getenv("API_URL"))
 
     def test_crawl_watcher(self):
-        # Start a small crawl job
+        
         start_job = self.client.start_crawl("https://docs.firecrawl.dev", limit=2)
         job_id = start_job.id
 
@@ -27,7 +27,7 @@ class TestWatcherE2E:
         w.add_listener(lambda s: statuses.append(s.status))
         w.start()
 
-        # Wait for terminal state up to 180 seconds
+        
         deadline = time.time() + 180
         while time.time() < deadline:
             if statuses and statuses[-1] in ["completed", "failed"]:

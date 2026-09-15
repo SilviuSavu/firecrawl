@@ -46,19 +46,19 @@ async def map(client: AsyncHttpClient, url: str, options: Optional[MapOptions] =
         raise Exception(body.get("error", "Unknown error occurred"))
     
     
-    # data = body.get("data", {})
-    # result_links: list[LinkResult] = []
-    # for item in data.get("links", []):
-    #     if isinstance(item, dict):
-    #         result_links.append(
-    #             LinkResult(
-    #                 url=item.get("url", ""),
-    #                 title=item.get("title"),
-    #                 description=item.get("description"),
-    #             )
-    #         )
-    #     elif isinstance(item, str):
-    #         result_links.append(LinkResult(url=item))
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     result_links: list[LinkResult] = []
     for item in body.get("links", []):

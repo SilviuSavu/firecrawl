@@ -50,18 +50,18 @@ from .types import (
 from .utils.http_client import HttpClient
 from .utils.http_client_async import AsyncHttpClient
 
-from .methods.aio import scrape as async_scrape  # type: ignore[attr-defined]
-from .methods.aio import parse as async_parse  # type: ignore[attr-defined]
-from .methods.aio import batch as async_batch  # type: ignore[attr-defined]
-from .methods.aio import crawl as async_crawl  # type: ignore[attr-defined]
-from .methods.aio import search as async_search  # type: ignore[attr-defined]
-from .methods.aio import map as async_map # type: ignore[attr-defined]
-from .methods.aio import usage as async_usage # type: ignore[attr-defined]
-from .methods.aio import extract as async_extract  # type: ignore[attr-defined]
-from .methods.aio import agent as async_agent  # type: ignore[attr-defined]
-from .methods.aio import browser as async_browser  # type: ignore[attr-defined]
-from .methods.aio import monitor as async_monitor  # type: ignore[attr-defined]
-from .methods.aio import research as async_research  # type: ignore[attr-defined]
+from .methods.aio import scrape as async_scrape  
+from .methods.aio import parse as async_parse  
+from .methods.aio import batch as async_batch  
+from .methods.aio import crawl as async_crawl  
+from .methods.aio import search as async_search  
+from .methods.aio import map as async_map 
+from .methods.aio import usage as async_usage 
+from .methods.aio import extract as async_extract  
+from .methods.aio import agent as async_agent  
+from .methods.aio import browser as async_browser  
+from .methods.aio import monitor as async_monitor  
+from .methods.aio import research as async_research  
 
 from .client import _SCRAPE_OPTION_KEYS
 from .watcher_async import AsyncWatcher
@@ -98,7 +98,7 @@ class AsyncFirecrawlClient:
             backoff_factor=backoff_factor,
         )
 
-    # Scrape
+    
     async def scrape(
         self,
         url: str,
@@ -233,7 +233,7 @@ class AsyncFirecrawlClient:
         )
 
 
-    # Search
+    
     async def search(
         self,
         query: str,
@@ -304,7 +304,7 @@ class AsyncFirecrawlClient:
             await asyncio.sleep(poll_interval)
 
     async def crawl(self, **kwargs) -> CrawlJob:
-        # wrapper combining start and wait
+        
         resp = await self.start_crawl(
             **{k: v for k, v in kwargs.items() if k not in ("poll_interval", "timeout", "request_timeout")}
         )
@@ -387,7 +387,7 @@ class AsyncFirecrawlClient:
     async def active_crawls(self) -> ActiveCrawlsResponse:
         return await self.get_active_crawls()
 
-    # Map
+    
     async def map(
         self,
         url: str,
@@ -539,7 +539,7 @@ class AsyncFirecrawlClient:
             await asyncio.sleep(poll_interval)
 
     async def batch_scrape(self, urls: List[str], **kwargs) -> Any:
-        # waiter wrapper
+        
         start = await self.start_batch_scrape(urls, **{k: v for k, v in kwargs.items() if k not in ("poll_interval", "timeout")})
         job_id = start.id
         poll_interval = kwargs.get("poll_interval", 2)
@@ -573,10 +573,10 @@ class AsyncFirecrawlClient:
         return await async_batch.cancel_batch_scrape(self.async_http_client, job_id)
 
     async def get_batch_scrape_errors(self, job_id: str) -> CrawlErrorsResponse:
-        # Returns v2 errors structure; typed as CrawlErrorsResponse for parity
-        return await async_batch.get_batch_scrape_errors(self.async_http_client, job_id)  # type: ignore[return-value]
+        
+        return await async_batch.get_batch_scrape_errors(self.async_http_client, job_id)  
 
-    # Extract (proxy to v1 async) — deprecated
+    
     async def extract(
         self,
         urls: Optional[List[str]] = None,
@@ -665,7 +665,7 @@ class AsyncFirecrawlClient:
             threat_protection=threat_protection,
         )
 
-    # Agent
+    
     async def agent(
         self,
         urls: Optional[List[str]] = None,
@@ -736,7 +736,7 @@ class AsyncFirecrawlClient:
         """
         return await async_agent.cancel_agent(self.async_http_client, job_id)
 
-    # Browser
+    
     async def browser(
         self,
         *,
@@ -823,32 +823,32 @@ class AsyncFirecrawlClient:
             status=status,
         )
 
-    # Usage endpoints
+    
     async def get_concurrency(self):
-        from .methods.aio import usage as async_usage  # type: ignore[attr-defined]
+        from .methods.aio import usage as async_usage  
         return await async_usage.get_concurrency(self.async_http_client)
 
     async def get_credit_usage(self):
-        from .methods.aio import usage as async_usage  # type: ignore[attr-defined]
+        from .methods.aio import usage as async_usage  
         return await async_usage.get_credit_usage(self.async_http_client)
 
     async def get_token_usage(self):
-        from .methods.aio import usage as async_usage  # type: ignore[attr-defined]
+        from .methods.aio import usage as async_usage  
         return await async_usage.get_token_usage(self.async_http_client)
     
     async def get_credit_usage_historical(self, by_api_key: bool = False):
-        from .methods.aio import usage as async_usage  # type: ignore[attr-defined]
+        from .methods.aio import usage as async_usage  
         return await async_usage.get_credit_usage_historical(self.async_http_client, by_api_key)
     
     async def get_token_usage_historical(self, by_api_key: bool = False):
-        from .methods.aio import usage as async_usage  # type: ignore[attr-defined]
+        from .methods.aio import usage as async_usage  
         return await async_usage.get_token_usage_historical(self.async_http_client, by_api_key)
 
     async def get_queue_status(self):
-        from .methods.aio import usage as async_usage  # type: ignore[attr-defined]
+        from .methods.aio import usage as async_usage  
         return await async_usage.get_queue_status(self.async_http_client)
 
-    # Watcher (sync object usable from async contexts)
+    
     def watcher(
         self,
         job_id: str,

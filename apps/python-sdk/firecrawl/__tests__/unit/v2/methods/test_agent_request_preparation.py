@@ -87,7 +87,7 @@ class TestAgentRequestPreparation:
         
         assert data["prompt"] == "Extract person data"
         assert "schema" in data
-        # Should use the class schema, not the instance data
+        
         assert data["schema"]["type"] == "object"
 
     def test_request_with_nested_pydantic_schema(self):

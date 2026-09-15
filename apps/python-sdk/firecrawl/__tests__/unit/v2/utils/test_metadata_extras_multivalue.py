@@ -14,9 +14,9 @@ class TestMetadataMultiValue:
             },
         }
         doc = Document(**normalize_document_input(raw))
-        # typed access works and is joined as string
+        
         assert doc.metadata is not None
         assert doc.metadata.article_tag == "one, two"
-        # dict view shows string
+        
         md = doc.metadata_dict
         assert md["article_tag"] == "one, two"

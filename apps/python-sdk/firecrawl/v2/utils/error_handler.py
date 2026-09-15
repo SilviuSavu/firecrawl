@@ -67,9 +67,9 @@ def handle_response_error(response: requests.Response, action: str) -> None:
         error_message = response_json.get('error', 'No error message provided.')
         error_details = response_json.get('details', 'No additional error details provided.')
     except:
-        # If we can't parse JSON, provide a helpful error message
+        
         try:
-            response_text = response.text[:500]  # Limit to first 500 chars
+            response_text = response.text[:500]  
             if response_text.strip():
                 error_message = f"Server returned non-JSON response: {response_text}"
                 error_details = f"Full response status: {response.status_code}"
@@ -80,7 +80,7 @@ def handle_response_error(response: requests.Response, action: str) -> None:
             error_message = f"Server returned unreadable response with status {response.status_code}"
             error_details = "No additional details available"
     
-    # Create appropriate error message
+    
     if response.status_code == 400:
         message = f"Bad Request: Failed to {action}. {error_message} - {error_details}"
         raise BadRequestError(message, response.status_code, response)

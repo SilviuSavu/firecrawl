@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Tavily (https://tavily.com) -- AI web search via the Tavily JSON API.
 
 Tavily is an API-backed web search built for LLM/RAG pipelines. Like serpapi
@@ -42,13 +42,13 @@ about = {
 categories = ["general"]
 shortcut = "tav"
 
-# No offset pagination in a single call -- max_results is returned at once.
-# Firecrawl accumulates/dedups across engines, so 5 is plenty alongside them.
+
+
 paging = False
-page_size = 5  # free Researcher plan caps at 5/query; bump to 10 on a paid plan
+page_size = 5  
 
 language_support = True
-# Tavily has no first-class time_range param in the basic search call.
+
 time_range_support = False
 
 _BASE_URL = "https://api.tavily.com/search"
@@ -59,28 +59,28 @@ def request(query, params):
     if not api_key:
         raise SearxEngineAPIException("TAVILY_API_KEY env var is not set")
 
-    # SearXNG language is BCP47 ("en-US") or "all"; Tavily wants a 2-letter code.
+    
     lang = (params.get("language") or "en").replace("all", "en").lower()
     lang_code = lang.split("-")[0] or "en"
 
     body = {
         "query": query,
         "max_results": page_size,
-        # "basic" = 1 credit/call (advanced = 2). Keep basic to stretch the
-        # free tier; the depth only affects result richness, not count.
+        
+        
         "search_depth": "basic",
         "topic": "general",
-        # Firecrawl scrapes the URL for full content, so do not pull raw page
-        # text from Tavily (would add cost + payload for nothing).
+        
+        
         "include_raw_content": False,
-        # Synthesized answer is 0 extra credits on basic, but Firecrawl's
-        # web-bucket transform drops SearXNG "answer" results -- leave off to
-        # minimize latency. Enable for direct SearXNG consumers that want it.
+        
+        
+        
         "include_answer": False,
     }
-    # NOTE: Tavily auto-localizes from the query; it has no reliably-documented
-    # language param in the basic call, so we don't force one (avoids a 422 on
-    # an unknown field from a strict FastAPI body schema).
+    
+    
+    
 
     params["url"] = _BASE_URL
     params["method"] = "POST"
@@ -97,9 +97,9 @@ def response(resp):
     except ValueError:
         raise SearxEngineAPIException("invalid JSON response from Tavily")
 
-    # Tavily (FastAPI) surfaces errors as {"detail": ...} / {"message": ...};
-    # credit-exhaustion and quota errors land here too. Raising lets SearXNG
-    # mark the engine unresponsive and return the other engines' results.
+    
+    
+    
     if isinstance(data, dict):
         err = data.get("detail") or data.get("message") or data.get("error")
         if err and not data.get("results"):

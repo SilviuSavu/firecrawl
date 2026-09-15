@@ -68,7 +68,7 @@ def _prepare_parse_options_payload(
         if validated is not None:
             opts = prepare_scrape_options(validated) or {}
             _validate_parse_options_payload(opts)
-            # Parse is always uncached server-side; avoid sending cache/index hints.
+            
             opts.pop("maxAge", None)
             opts.pop("minAge", None)
             opts.pop("storeInCache", None)

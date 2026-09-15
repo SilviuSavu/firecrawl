@@ -1,0 +1,4 @@
+services:
+  searxng:
+    labels:
+      - com.centurylinklabs.watchtower.enable=true

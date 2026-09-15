@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from serpapi.google_search import GoogleSearch
 from together import Together
 
-# ANSI color codes
+
 class Colors:
     CYAN = '\033[96m'
     YELLOW = '\033[93m'
@@ -16,10 +16,10 @@ class Colors:
     BLUE = '\033[94m'
     RESET = '\033[0m'
 
-# Load environment variables
+
 load_dotenv()
 
-# Initialize clients
+
 together_api_key = os.getenv("TOGETHER_API_KEY")
 if not together_api_key:
     print(f"{Colors.RED}Error: TOGETHER_API_KEY not found in environment variables{Colors.RESET}")
@@ -81,14 +81,14 @@ def select_urls_with_gemini(company, objective, serp_results):
             
             cleaned_response = response.choices[0].message.content.strip()
 
-            # Find the JSON object in the response
+            
             import re
             json_match = re.search(r'\{[\s\S]*"selected_urls"[\s\S]*\}', cleaned_response)
             if json_match:
                 cleaned_response = json_match.group(0)
                 print(f"{Colors.CYAN}Extracted JSON: {cleaned_response}{Colors.RESET}")
 
-            # Clean the response text
+            
             if cleaned_response.startswith('```'):
                 cleaned_response = cleaned_response.split('```')[1]
                 if cleaned_response.startswith('json'):
@@ -96,7 +96,7 @@ def select_urls_with_gemini(company, objective, serp_results):
             cleaned_response = cleaned_response.strip()
 
             try:
-                # Parse JSON response
+                
                 result = json.loads(cleaned_response)
                 if isinstance(result, dict) and "selected_urls" in result:
                     urls = result["selected_urls"]
@@ -105,11 +105,11 @@ def select_urls_with_gemini(company, objective, serp_results):
                     urls = []
             except json.JSONDecodeError as e:
                 print(f"{Colors.YELLOW}Failed to parse JSON: {str(e)}{Colors.RESET}")
-                # Fallback to text parsing
+                
                 urls = [line.strip() for line in cleaned_response.split('\n') 
                        if line.strip().startswith(('http://', 'https://'))]
 
-            # Clean up URLs
+            
             cleaned_urls = [url.replace('/*', '').rstrip('/') for url in urls]
             cleaned_urls = [url for url in cleaned_urls if url]
 
@@ -152,7 +152,7 @@ def extract_company_info(urls, prompt, company, api_key):
             "https://api.firecrawl.dev/v1/extract",
             headers=headers,
             json=payload,
-            timeout=120  # Increased timeout to 120 seconds
+            timeout=120  
         )
         
         if response.status_code != 200:
@@ -170,7 +170,7 @@ def extract_company_info(urls, prompt, company, api_key):
             print(f"{Colors.RED}No extraction ID found in response.{Colors.RESET}")
             return None
 
-        return poll_firecrawl_result(extraction_id, api_key, interval=5, max_attempts=120)  # Increased polling attempts
+        return poll_firecrawl_result(extraction_id, api_key, interval=5, max_attempts=120)  
 
     except requests.exceptions.Timeout:
         print(f"{Colors.RED}Request timed out. The operation might still be processing in the background.{Colors.RESET}")

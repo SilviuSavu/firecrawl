@@ -76,16 +76,16 @@ class TestValidateScrapeOptions:
         options = ScrapeOptions(timeout=-1000, wait_for=-500)
         with pytest.raises(ValueError, match="Timeout must be positive"):
             validate_scrape_options(options)
-        # Should fail on first invalid field (timeout)
+        
 
     def test_validate_edge_cases(self):
         """Test validation with edge case values."""
-        # Test with very large timeout
+        
         options = ScrapeOptions(timeout=999999)
         result = validate_scrape_options(options)
         assert result == options
 
-        # Test with very large wait_for
+        
         options = ScrapeOptions(wait_for=999999)
         result = validate_scrape_options(options)
         assert result == options
@@ -125,11 +125,11 @@ class TestPrepareScrapeOptions:
             wait_for=2000,
             skip_tls_verification=True,
             remove_base64_images=False
-            # Note: raw_html should be in formats array, not as a separate field
+            
         )
         result = prepare_scrape_options(options)
     
-        # Check conversions
+        
         assert "includeTags" in result
         assert result["includeTags"] == ["h1", "h2"]
         assert "excludeTags" in result
@@ -143,7 +143,7 @@ class TestPrepareScrapeOptions:
         assert "removeBase64Images" in result
         assert result["removeBase64Images"] is False
         
-        # Check that snake_case fields are not present
+        
         assert "include_tags" not in result
         assert "exclude_tags" not in result
         assert "only_main_content" not in result
@@ -167,7 +167,7 @@ class TestPrepareScrapeOptions:
         )
         result = prepare_scrape_options(options)
         
-        # Check all fields are present and converted
+        
         assert "formats" in result
         assert "headers" in result
         assert "includeTags" in result
@@ -179,7 +179,7 @@ class TestPrepareScrapeOptions:
         assert "skipTlsVerification" in result
         assert "removeBase64Images" in result
         
-        # Check values
+        
         assert result["formats"] == ["markdown", "html", "rawHtml"]
         assert result["headers"] == {"User-Agent": "Test Bot"}
         assert result["includeTags"] == ["h1", "h2", "h3"]
@@ -267,10 +267,10 @@ class TestPrepareScrapeOptions:
 
     def test_prepare_empty_options(self):
         """Test preparation with empty options."""
-        options = ScrapeOptions()  # All defaults
+        options = ScrapeOptions()  
         result = prepare_scrape_options(options)
         
-        # Should return dict with default values
+        
         assert isinstance(result, dict)
         assert "onlyMainContent" in result
         assert result["onlyMainContent"] is True
@@ -288,15 +288,15 @@ class TestPrepareScrapeOptions:
         )
         result = prepare_scrape_options(options)
         
-        # Should only include non-None values
+        
         assert isinstance(result, dict)
-        # Should have default values for required fields
+        
         assert "onlyMainContent" in result
         assert "mobile" in result 
 
     def test_format_schema_conversion(self):
         """Test that Format schema is properly handled."""
-        # Create a JsonFormat object with schema
+        
         format_obj = JsonFormat(
             type="json",
             prompt="Extract product info",
@@ -325,14 +325,14 @@ class TestPrepareScrapeOptions:
             block_ads=False,
             store_in_cache=False,
             lockdown=True,
-            max_age=7200000,  # 2 hours
+            max_age=7200000,  
             actions=[screenshot_action],
             parsers=["pdf"]
         )
 
         result = prepare_scrape_options(options)
 
-        # Check new field conversions
+        
         assert "fastMode" in result
         assert result["fastMode"] is True
         assert "useMock" in result
@@ -346,7 +346,7 @@ class TestPrepareScrapeOptions:
         assert "maxAge" in result
         assert result["maxAge"] == 7200000
         
-        # Check actions conversion
+        
         assert "actions" in result
         assert len(result["actions"]) == 1
         action = result["actions"][0]
@@ -357,11 +357,11 @@ class TestPrepareScrapeOptions:
         assert action["viewport"]["width"] == 1920
         assert action["viewport"]["height"] == 1080
         
-        # Check parsers
+        
         assert "parsers" in result
         assert result["parsers"] == ["pdf"]
         
-        # Check that snake_case fields are not present
+        
         assert "fast_mode" not in result
         assert "use_mock" not in result
         assert "block_ads" not in result

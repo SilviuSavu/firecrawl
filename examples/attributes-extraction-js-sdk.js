@@ -1,6 +1,6 @@
-/**
- * Example: Using Firecrawl JS SDK v2 to extract attributes from HTML elements
- */
+
+
+
 
 import { Firecrawl } from 'firecrawl';
 
@@ -10,7 +10,7 @@ async function main() {
   console.log('🎯 Extracting attributes from Hacker News...');
 
   try {
-    // Extract story IDs from Hacker News
+    
     const result = await app.scrapeUrl('https://news.ycombinator.com', {
       formats: [
         { type: 'markdown' },
@@ -27,7 +27,7 @@ async function main() {
     console.log('Story IDs:', result.data.attributes[0].values.slice(0, 5));
     console.log('Total stories found:', result.data.attributes[0].values.length);
 
-    // Example with GitHub - multiple attributes
+    
     console.log('\n🎯 Extracting multiple attributes from GitHub...');
 
     const githubResult = await app.scrapeUrl('https://github.com/microsoft/vscode', {

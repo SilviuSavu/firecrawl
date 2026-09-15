@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Transparent Firecrawl proxy with a Firecrawl Cloud fallback for hard pages.
 
 Sits between callers (the pi web tools via FIRECRAWL_URL=http://localhost:3003/v1)
@@ -31,14 +31,14 @@ LOCAL = os.environ.get("LOCAL_FIRECRAWL_URL", "http://api:3002").rstrip("/")
 CLOUD = "https://api.firecrawl.dev"
 CLOUD_KEY = os.environ.get("FIRECRAWL_API_KEY", "").strip()
 
-LOCAL_TIMEOUT = float(os.environ.get("LOCAL_TIMEOUT", "25"))
+LOCAL_TIMEOUT = float(os.environ.get("LOCAL_TIMEOUT", "90"))
 CLOUD_TIMEOUT = float(os.environ.get("CLOUD_TIMEOUT", "45"))
-# Near-empty floor only as a degenerate-case backstop: real pages are almost
-# always > this (example.com is ~167 chars); kept low so legitimately small
-# pages don't false-positive into a Cloud call.
+
+
+
 MIN_OK_LEN = int(os.environ.get("MIN_OK_LEN", "50"))
-# Substrings that indicate the page returned is a bot-challenge interstitial,
-# not real content (200 OK but useless).
+
+
 CHALLENGE_MARKERS = (
     "verify you are human",
     "checking your browser",
@@ -46,19 +46,21 @@ CHALLENGE_MARKERS = (
     "attention required",
     "enable javascript and cookies to continue",
     "cf-challenge",
-    "dd-block",          # datadome
+    "dd-block",          
     "access denied",
     "request blocked",
     "unusual traffic from your computer",
 )
 
 SCRAPE_PATHS = {"/v1/scrape", "/scrape", "/v2/scrape"}
+
+SEARCH_TIMEOUT_MS = float(os.environ.get("SEARCH_TIMEOUT_MS", "85000"))
 _SSL = ssl.create_default_context()
 
 
 def _request(method, url, headers, body, timeout):
-    # GET must have no body (Firecrawl's /crawl/{id} status is GET-only and
-    # 404s on POST); POST/PUT carry the body. Honor the original verb.
+    
+    
     req = urlrequest.Request(url, data=(body if body else None), headers=headers, method=method)
     with urlrequest.urlopen(req, timeout=timeout, context=_SSL) as r:
         return r.status, r.read()
@@ -69,7 +71,7 @@ def _looks_failed(raw_bytes):
     try:
         payload = json.loads(raw_bytes) if raw_bytes else None
     except ValueError:
-        return True  # unparseable -> definitely failed
+        return True  
     if not payload or not payload.get("success"):
         return True
     md = ((payload.get("data") or {}).get("markdown") or "")
@@ -88,11 +90,11 @@ def _hdrs_in(source_headers):
 class Proxy(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
-    def log_message(self, fmt, *args):  # keep stderr quiet, one line per request
+    def log_message(self, fmt, *args):  
         path = self.path
         print(f"[proxy] {self.command} {path}", *args, flush=True)
 
-    # ---- shared ----
+    
     def _respond(self, status, body, ctype="application/json"):
         self.send_response(status)
         self.send_header("Content-Type", ctype)
@@ -105,16 +107,39 @@ class Proxy(BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length", "0") or "0")
         return self.rfile.read(n) if n > 0 else b""
 
+    SEARCH_PATHS = {"/v1/search", "/search"}
+
     def _passthrough_local(self, body):
-        """Forward any request to local unchanged."""
+        """Forward any request to local unchanged (except /search timeout bump)."""
+        if self.path.rstrip("/") in self.SEARCH_PATHS and body:
+            body = self._bump_search_timeout(body)
         headers = _hdrs_in(self.headers)
         try:
             status, resp = _request(self.command, LOCAL + self.path, headers, body, LOCAL_TIMEOUT)
             self._respond(status, resp)
-        except Exception as e:  # local unreachable
+        except Exception as e:  
             self._respond(502, json.dumps({"success": False, "error": f"proxy->local: {e}"}).encode())
 
-    # ---- scrape with Cloud fallback ----
+    def _bump_search_timeout(self, body: bytes) -> bytes:
+        """Inject a generous timeout into Firecrawl /search bodies.
+
+        The local Firecrawl build ignores body.timeout for the SearXNG call
+        on this path (execute.js drops it), but the field is still accepted;
+        future builds that honor it get the same number we assume below.
+        The real work is done by the SearXNG-side timeout raise, this keeps
+        the request contract consistent.
+        """
+        try:
+            payload = json.loads(body)
+        except ValueError:
+            return body
+        if not isinstance(payload, dict):
+            return body
+        if payload.get("timeout") is None:
+            payload["timeout"] = SEARCH_TIMEOUT_MS
+        return json.dumps(payload).encode()
+
+    
     def _scrape(self, body):
         headers = _hdrs_in(self.headers)
         local_status, local_resp = None, None
@@ -127,9 +152,9 @@ class Proxy(BaseHTTPRequestHandler):
         except Exception as e:
             reason = f"local error: {e}"
 
-        # Cloud fallback
+        
         if not CLOUD_KEY:
-            # No key -> return local's best effort (or 502 if local hard-failed).
+            
             if local_resp is not None:
                 self._respond(local_status, local_resp)
             else:
@@ -139,20 +164,20 @@ class Proxy(BaseHTTPRequestHandler):
             payload = json.loads(body) if body else {}
         except ValueError:
             payload = {}
-        payload.setdefault("proxy", "auto")  # let Cloud escalate to stealth if basic fails
+        payload.setdefault("proxy", "auto")  
         cheaders = {"Content-Type": "application/json", "Authorization": "Bearer " + CLOUD_KEY}
         try:
             cstatus, cresp = _request("POST", CLOUD + self.path, cheaders, json.dumps(payload).encode(), CLOUD_TIMEOUT)
             print(f"[proxy] Cloud fallback USED for {payload.get('url')[:60] if isinstance(payload.get('url'), str) else '?'} (local: {reason})", flush=True)
             self._respond(cstatus, cresp)
         except Exception as e:
-            # Cloud failed too -> return local's result if we have one, else 502.
+            
             if local_resp is not None:
                 self._respond(local_status, local_resp)
             else:
                 self._respond(502, json.dumps({"success": False, "error": f"local ({reason}) + cloud ({e}) both failed"}).encode())
 
-    # ---- verbs ----
+    
     def do_POST(self):
         body = self._read_body()
         if self.path.rstrip("/") in SCRAPE_PATHS:
@@ -161,7 +186,7 @@ class Proxy(BaseHTTPRequestHandler):
             self._passthrough_local(body)
 
     def do_GET(self):
-        # All non-scrape reads pass through to local (health, etc.).
+        
         self._passthrough_local(b"")
 
     def do_HEAD(self):

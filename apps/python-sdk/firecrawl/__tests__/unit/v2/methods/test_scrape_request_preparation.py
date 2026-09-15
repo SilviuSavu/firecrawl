@@ -44,10 +44,10 @@ class TestScrapeRequestPreparation:
         """Test basic request preparation with minimal fields."""
         data = _prepare_scrape_request("https://example.com")
         
-        # Check basic fields
+        
         assert data["url"] == "https://example.com"
         
-        # Check that no options are present
+        
         assert "formats" not in data
         assert "headers" not in data
 
@@ -68,10 +68,10 @@ class TestScrapeRequestPreparation:
         
         data = _prepare_scrape_request("https://example.com", options)
         
-        # Check basic field
+        
         assert data["url"] == "https://example.com"
         
-        # Check snake_case to camelCase conversions
+        
         assert "includeTags" in data
         assert data["includeTags"] == ["h1", "h2"]
         assert "excludeTags" in data
@@ -85,7 +85,7 @@ class TestScrapeRequestPreparation:
         assert "removeBase64Images" in data
         assert data["removeBase64Images"] is False
         
-        # Check that snake_case fields are not present
+        
         assert "include_tags" not in data
         assert "exclude_tags" not in data
         assert "only_main_content" not in data
@@ -112,7 +112,7 @@ class TestScrapeRequestPreparation:
         data = _prepare_scrape_request("https://example.com", None)
         
         assert data["url"] == "https://example.com"
-        # Should not have any option fields
+        
         assert len(data) == 1
 
     def test_empty_url_validation(self):

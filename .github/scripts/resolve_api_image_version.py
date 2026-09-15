@@ -90,10 +90,10 @@ def main() -> int:
     if args.include_current_commit_tags:
         base_tags = semver_tags
     else:
-        # Excluding tags already on this commit makes production retries
-        # idempotent. If a prior attempt created vX.Y.Z but failed before
-        # pushing every manifest, the same target version is reused instead of
-        # burning vX.Y.(Z+1).
+        
+        
+        
+        
         base_tags = [tag for tag in semver_tags if tag.commit != current_sha]
 
     base = base_tags[-1].version if base_tags else None

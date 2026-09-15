@@ -235,7 +235,7 @@ class Firecrawl:
         self.api_key = api_key
         self.api_url = api_url
 
-        # Initialize version-specific clients
+        
         self._v1_client = V1FirecrawlApp(api_key=api_key, api_url=api_url) if V1FirecrawlApp else None
         self._v2_client = V2FirecrawlClient(
             api_key=api_key,
@@ -245,7 +245,7 @@ class Firecrawl:
             backoff_factor=backoff_factor,
         ) if V2FirecrawlClient else None
         
-        # Create version-specific proxies
+        
         self.v1 = V1Proxy(self._v1_client) if self._v1_client else None
         self.v2 = V2Proxy(self._v2_client)
         
@@ -346,7 +346,7 @@ class AsyncFirecrawl:
         self.api_key = api_key
         self.api_url = api_url
 
-        # Initialize version-specific clients
+        
         self._v1_client = AsyncV1FirecrawlApp(api_key=api_key, api_url=api_url) if AsyncV1FirecrawlApp else None
         self._v2_client = AsyncFirecrawlClient(
             api_key=api_key,
@@ -356,12 +356,12 @@ class AsyncFirecrawl:
             backoff_factor=backoff_factor,
         ) if AsyncFirecrawlClient else None
         
-        # Create version-specific proxies
+        
         self.v1 = AsyncV1Proxy(self._v1_client) if self._v1_client else None
         self.v2 = AsyncV2Proxy(self._v2_client)
 
-        # Expose v2 async surface directly on the top-level client for ergonomic access
-        # Keep method names aligned with the sync client
+        
+        
         self.scrape = self._v2_client.scrape
         self.interact = self._v2_client.interact
         self.stop_interaction = self._v2_client.stop_interaction
@@ -444,6 +444,6 @@ class AsyncFirecrawl:
             options=options,
         )
 
-# Export Firecrawl as an alias for FirecrawlApp
+
 FirecrawlApp = Firecrawl
 AsyncFirecrawlApp = AsyncFirecrawl

@@ -7,13 +7,13 @@ class TestBatchScrapeRequestPreparation:
     """Unit tests for batch scrape request preparation."""
 
     def test_urls_validation(self):
-        # empty list
+        
         with pytest.raises(ValueError):
             prepare_batch_scrape_request([])
-        # invalid protocol
+        
         with pytest.raises(ValueError):
-            prepare_batch_scrape_request(["example.com"])  # missing http(s)
-        # valid
+            prepare_batch_scrape_request(["example.com"])  
+        
         data = prepare_batch_scrape_request(["https://example.com", "http://foo.bar"])
         assert data["urls"] == ["https://example.com", "http://foo.bar"]
 
@@ -40,15 +40,15 @@ class TestBatchScrapeRequestPreparation:
         )
         data = prepare_batch_scrape_request(["https://example.com"], options=opts)
 
-        # Formats should be at top-level as list, with screenshot normalized to object w/ fullPage
+        
         assert isinstance(data.get("formats"), list)
         assert "markdown" in data["formats"]
-        # snake_case format should be converted to camelCase
+        
         assert "changeTracking" in data["formats"]
         found_obj = next((f for f in data["formats"] if isinstance(f, dict) and f.get("type") == "screenshot"), None)
         assert found_obj is not None and found_obj.get("fullPage") is True and found_obj.get("quality") == 80
 
-        # Field conversions to camelCase
+        
         assert data["includeTags"] == ["main"]
         assert data["excludeTags"] == ["nav"]
         assert data["onlyMainContent"] is True

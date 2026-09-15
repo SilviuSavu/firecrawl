@@ -59,14 +59,70 @@ engines:
   engine: zimtitles
   timeout: 10.0
   shortcut: zt
-  base_url: http://mac-mini-von-savu.netbird.selfhosted:7777
-  kiwix_url: http://mac-mini-von-savu.netbird.selfhosted:8181
+  base_url: http://192.168.10.30:7777
+  kiwix_url: http://192.168.10.30:8181
   reranker_url: http://host.docker.internal:8101
   weight: 0.6
   disabled: false
   categories:
   - general
   - it
+  - offline
+  paging: false
+  enable_http: true
+- name: rfc
+  engine: offlinecorpus
+  base_url: http://192.168.10.227:7700
+  index: rfc
+  shortcut: rfc
+  timeout: 6.0
+  weight: 0.5
+  disabled: false
+  categories:
+  - general
+  - it
+  - offline
+  paging: false
+  enable_http: true
+- name: iana
+  engine: offlinecorpus
+  base_url: http://192.168.10.227:7700
+  index: iana
+  shortcut: iana
+  timeout: 6.0
+  weight: 0.5
+  disabled: false
+  categories:
+  - general
+  - it
+  - offline
+  paging: false
+  enable_http: true
+- name: cve
+  engine: offlinecorpus
+  base_url: http://192.168.10.227:7700
+  index: cve
+  shortcut: cve
+  timeout: 6.0
+  weight: 0.5
+  disabled: false
+  categories:
+  - general
+  - it
+  - offline
+  paging: false
+  enable_http: true
+- name: openalex
+  engine: offlinecorpus
+  base_url: http://192.168.10.227:7700
+  index: openalex
+  shortcut: oa
+  timeout: 10.0
+  weight: 0.4
+  disabled: false
+  categories:
+  - general
+  - science
   - offline
   paging: false
   enable_http: true

@@ -10,9 +10,9 @@ class TestDocumentMetadataExtras:
             "markdown": "# Hello",
             "metadata": {
                 "title": "Example",
-                # Known camelCase -> snake_case mapping
+                
                 "statusCode": "200",
-                # Unknown keys that should be preserved as-is
+                
                 "twitter:card": "summary",
                 "twitterCard": "summary_large_image",
                 "theme-color": "#fff",
@@ -21,29 +21,29 @@ class TestDocumentMetadataExtras:
 
         doc = Document(**normalize_document_input(raw))
         md_dict = doc.metadata_dict
-        # Known key mapped and coerced
+        
         assert md_dict["status_code"] == 200
         assert md_dict["title"] == "Example"
-        # Extras are preserved verbatim
+        
         assert md_dict["twitter:card"] == "summary"
         assert md_dict["twitterCard"] == "summary_large_image"
         assert md_dict["theme-color"] == "#fff"
 
     def test_metadata_typed_from_plain_dict_preserves_extras(self):
-        # Construct Document with raw dict metadata without normalization step
+        
         doc = Document(
             markdown="# Hi",
             metadata={
-                "ogTitle": "Hello",  # will be treated as extra without normalization
+                "ogTitle": "Hello",  
                 "x-custom": "ok",
             },
         )
 
         md = doc.metadata_typed
         assert isinstance(md, DocumentMetadata)
-        # Known fields aren't populated without normalization
+        
         assert md.og_title is None
-        # Extras are available on the underlying pydantic storage and in metadata_dict
+        
         extras = getattr(md, "__pydantic_extra__", {}) or {}
         assert extras == {"ogTitle": "Hello", "x-custom": "ok"}
         assert doc.metadata_dict["ogTitle"] == "Hello"
@@ -90,5 +90,5 @@ class TestDocumentMetadataExtras:
 
     def test_metadata_typed_extras_property(self):
         md = DocumentMetadata(title="T", **{"x-foo": "bar"})
-        # extras accessor should expose unknown keys
+        
         assert md.extras == {"x-foo": "bar"}

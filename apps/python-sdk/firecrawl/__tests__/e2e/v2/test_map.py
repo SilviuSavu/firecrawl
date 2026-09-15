@@ -27,7 +27,7 @@ class TestMapE2E:
         assert hasattr(resp, "links") and resp.links is not None
         assert isinstance(resp.links, list)
 
-        # Basic sanity checks on at least one link
+        
         if len(resp.links) > 0:
             first = resp.links[0]
             assert hasattr(first, "url")
@@ -53,7 +53,7 @@ class TestMapE2E:
 
         assert hasattr(resp, "links") and isinstance(resp.links, list)
 
-        # Limit should be respected (server-side)
+        
         assert len(resp.links) <= 10
 
         for link in resp.links:

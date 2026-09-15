@@ -94,7 +94,7 @@ async def get_batch_scrape_status(
     payload = _parse_batch_scrape_status_response(body)
     docs = payload["data"]
     
-    # Handle pagination if requested
+    
     auto_paginate = pagination_config.auto_paginate if pagination_config else True
     if auto_paginate and payload["next"]:
         docs = await _fetch_all_batch_pages_async(
@@ -173,7 +173,7 @@ async def _fetch_all_batch_pages_async(
     current_url = next_url
     page_count = 0
     
-    # Apply pagination limits
+    
     max_pages = pagination_config.max_pages if pagination_config else None
     max_results = pagination_config.max_results if pagination_config else None
     max_wait_time = pagination_config.max_wait_time if pagination_config else None
@@ -181,18 +181,18 @@ async def _fetch_all_batch_pages_async(
     start_time = time.monotonic()
     
     while current_url:
-        # Check pagination limits
+        
         if (max_pages is not None) and (page_count >= max_pages):
             break
             
         if (max_wait_time is not None) and (time.monotonic() - start_time) > max_wait_time:
             break
         
-        # Fetch next page
+        
         response = await client.get(current_url)
         
         if response.status_code >= 400:
-            # Log error but continue with what we have
+            
             import logging
             logger = logging.getLogger("firecrawl")
             logger.warning(f"Failed to fetch next page: {response.status_code}")
@@ -204,18 +204,18 @@ async def _fetch_all_batch_pages_async(
         except Exception:
             break
         
-        # Add documents from this page
+        
         for document in page_payload["data"]:
-            # Check max_results limit
+            
             if (max_results is not None) and (len(documents) >= max_results):
                 break
             documents.append(document)
         
-        # Check if we hit max_results limit
+        
         if (max_results is not None) and (len(documents) >= max_results):
             break
         
-        # Get next URL
+        
         current_url = page_payload["next"]
         page_count += 1
     

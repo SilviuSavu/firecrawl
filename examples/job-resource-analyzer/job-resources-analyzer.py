@@ -15,7 +15,7 @@ class Colors:
 
 load_dotenv()
 
-# Initialize clients
+
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
 serp_api_key = os.getenv("SERP_API_KEY")
@@ -80,7 +80,7 @@ def poll_extraction_result(extraction_id, api_key, interval=5, max_attempts=12):
 def rank_and_summarize_resources(resources, skills):
     """Use OpenAI to rank and summarize learning resources."""
     try:
-        # Prepare resources for ranking
+        
         all_resources = []
         for category, items in resources.items():
             for item in items:
@@ -90,7 +90,7 @@ def rank_and_summarize_resources(resources, skills):
                     "url": item["url"]
                 })
         
-        # Create prompt for OpenAI
+        
         skills_str = ", ".join(skills)
         prompt = f"""Given these learning resources for skills ({skills_str}), 
         rank them by relevance and quality, and provide a brief summary:
@@ -125,7 +125,7 @@ def rank_and_summarize_resources(resources, skills):
             ],
         )
         
-        # Parse and return ranked resources
+        
         ranked_data = json.loads(response.choices[0].message.content)
         return ranked_data["ranked_resources"]
 
@@ -142,7 +142,7 @@ def get_prep_resources(skills):
             "Documentation": []
         }
         
-        # Search for top 2 skills to reduce API usage
+        
         top_skills = skills[:2]
         search = GoogleSearch({
             "q": f"learn {' '.join(top_skills)} tutorial practice exercises documentation",
@@ -162,7 +162,7 @@ def get_prep_resources(skills):
             elif "doc" in title.lower() or "reference" in title.lower():
                 core_resources["Documentation"].append({"title": title, "url": url})
         
-        # Rank and summarize resources
+        
         ranked_resources = rank_and_summarize_resources(core_resources, top_skills)
         return ranked_resources
 
@@ -175,14 +175,14 @@ def generate_weekly_plan(skills):
     weeks = []
     total_skills = len(skills)
     
-    # Week 1: Fundamentals
+    
     weeks.append({
         "focus": "Fundamentals",
         "skills": skills[:2] if total_skills >= 2 else skills,
         "tasks": ["Study core concepts", "Complete basic tutorials"]
     })
     
-    # Week 2: Advanced Concepts
+    
     if total_skills > 2:
         weeks.append({
             "focus": "Advanced Topics",
@@ -190,14 +190,14 @@ def generate_weekly_plan(skills):
             "tasks": ["Deep dive into advanced features", "Practice exercises"]
         })
     
-    # Week 3: Projects & Practice
+    
     weeks.append({
         "focus": "Projects",
         "skills": "All core skills",
         "tasks": ["Build small projects", "Solve practice problems"]
     })
     
-    # Week 4: Interview Prep
+    
     weeks.append({
         "focus": "Interview Prep",
         "skills": "All skills",
@@ -210,28 +210,28 @@ def format_output(job_info, ranked_resources, weeks):
     """Format output in a concise way with ranked resources."""
     output = f"\n{Colors.GREEN}=== Job Preparation Guide ==={Colors.RESET}\n"
     
-    # Job Requirements
+    
     output += f"\n{Colors.CYAN}Position:{Colors.RESET} {job_info.get('job_title', 'N/A')}"
     output += f"\n{Colors.CYAN}Experience:{Colors.RESET} {job_info.get('experience_level', 'N/A')}"
     output += f"\n{Colors.CYAN}Key Skills:{Colors.RESET}"
     for skill in job_info.get('required_skills', []):
         output += f"\n- {skill}"
 
-    # Weekly Plan
+    
     output += f"\n\n{Colors.CYAN}4-Week Plan:{Colors.RESET}"
     for i, week in enumerate(weeks, 1):
         output += f"\n\n📅 Week {i}: {week['focus']}"
         output += f"\n   Skills: {', '.join(week['skills']) if isinstance(week['skills'], list) else week['skills']}"
         output += f"\n   Tasks: {' → '.join(week['tasks'])}"
 
-    # Ranked Learning Resources
+    
     if ranked_resources:
         output += f"\n\n{Colors.CYAN}Top Recommended Resources:{Colors.RESET}"
         
-        # Sort resources by relevance score
+        
         sorted_resources = sorted(ranked_resources, key=lambda x: x['relevance_score'], reverse=True)
         
-        for res in sorted_resources[:5]:  # Show top 5 resources
+        for res in sorted_resources[:5]:  
             output += f"\n\n📚 {res['title']} (Score: {res['relevance_score']}/10)"
             output += f"\n   {res['summary']}"
             output += f"\n   Why useful: {res['usefulness']}"
@@ -244,18 +244,18 @@ def main():
     try:
         job_url = input(f"{Colors.YELLOW}Enter job posting URL: {Colors.RESET}")
         
-        # Extract requirements
+        
         job_info = extract_job_requirements(job_url, firecrawl_api_key)
         if not job_info:
             print(f"{Colors.RED}Failed to extract job requirements.{Colors.RESET}")
             return
         
-        # Get resources and generate plan
+        
         print(f"{Colors.YELLOW}Finding and ranking preparation resources...{Colors.RESET}")
         resources = get_prep_resources(job_info.get('required_skills', []))
         weeks = generate_weekly_plan(job_info.get('required_skills', []))
         
-        # Display results
+        
         print(format_output(job_info, resources, weeks))
 
     except Exception as e:

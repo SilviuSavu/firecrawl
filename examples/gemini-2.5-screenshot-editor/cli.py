@@ -47,7 +47,7 @@ except ImportError as e:
 class FirecrawlGeminiEditor:
     """Main class for screenshot capture and AI editing with advanced features."""
 
-    # Advanced style prompts for artistic transformations
+    
     ARTISTIC_STYLES = {
         'van_gogh': "Transform into Vincent van Gogh's 'Starry Night' style with swirling, impasto brushstrokes and a dramatic palette of deep blues and bright yellows",
         'monet': "Apply Claude Monet's impressionist style with soft, blended colors and dreamy water lily-like effects",
@@ -69,7 +69,7 @@ class FirecrawlGeminiEditor:
             api_url=firecrawl_url or "https://api.firecrawl.dev"
         )
 
-        # Initialize Gemini client
+        
         self.client = genai.Client(api_key=gemini_key)
         self.model_name = "gemini-2.5-flash-image-preview"
 
@@ -84,7 +84,7 @@ class FirecrawlGeminiEditor:
                 print(f"Capturing screenshot: {url}")
                 print(f"Options: full_page={full_page}, mobile={mobile}, wait={wait_time}s")
 
-            # Configure screenshot options
+            
             formats = []
             if full_page:
                 formats = [{"type": "screenshot", "fullPage": True}]
@@ -98,10 +98,10 @@ class FirecrawlGeminiEditor:
             if mobile:
                 options["mobile"] = True
 
-            # Capture screenshot
+            
             result = self.firecrawl.scrape(url, **options)
 
-            # Extract screenshot data
+            
             if hasattr(result, 'screenshot'):
                 screenshot = result.screenshot
             elif isinstance(result, dict) and 'screenshot' in result:
@@ -109,7 +109,7 @@ class FirecrawlGeminiEditor:
             else:
                 raise Exception("No screenshot in response")
 
-            # Handle different formats
+            
             if screenshot.startswith('http'):
                 if self.verbose:
                     print("Downloading screenshot from URL...")
@@ -127,7 +127,7 @@ class FirecrawlGeminiEditor:
     def generate_image_from_text(self, prompt: str, style: Optional[str] = None, high_quality: bool = True) -> bytes:
         """Generate image from text prompt with optional artistic style and quality enhancement."""
         try:
-            # Add quality enhancement to prompt
+            
             quality_suffix = ""
             if high_quality:
                 quality_suffix = """
@@ -139,7 +139,7 @@ class FirecrawlGeminiEditor:
                 - Photorealistic textures where applicable
                 - Maximum image clarity and definition"""
 
-            # Enhance prompt with style if specified
+            
             if style and style in self.ARTISTIC_STYLES:
                 enhanced_prompt = f"{prompt}. {self.ARTISTIC_STYLES[style]}{quality_suffix}"
             else:
@@ -153,7 +153,7 @@ class FirecrawlGeminiEditor:
                 contents=enhanced_prompt
             )
 
-            # Extract image data
+            
             image_parts = [
                 part.inline_data.data
                 for part in response.candidates[0].content.parts
@@ -174,11 +174,11 @@ class FirecrawlGeminiEditor:
                            preserve_content: bool = True) -> bytes:
         """Apply artistic style transfer to an image."""
         try:
-            # Decode base64 image
+            
             image_bytes = base64.b64decode(image_data)
             image = Image.open(BytesIO(image_bytes))
 
-            # Build style transfer prompt
+            
             style_prompt = self.ARTISTIC_STYLES.get(style, style)
 
             if preserve_content:
@@ -207,7 +207,7 @@ class FirecrawlGeminiEditor:
                 contents=[prompt, image]
             )
 
-            # Extract styled image
+            
             image_parts = [
                 part.inline_data.data
                 for part in response.candidates[0].content.parts
@@ -230,7 +230,7 @@ class FirecrawlGeminiEditor:
             if self.verbose:
                 print(f"Compositing {len(images)} images...")
 
-            # Prepare images for API
+            
             pil_images = []
             for img_data in images:
                 if isinstance(img_data, str):
@@ -239,7 +239,7 @@ class FirecrawlGeminiEditor:
                     img_bytes = img_data
                 pil_images.append(Image.open(BytesIO(img_bytes)))
 
-            # Build contents list with prompt and images
+            
             contents = [composition_prompt] + pil_images
 
             response = self.client.models.generate_content(
@@ -247,7 +247,7 @@ class FirecrawlGeminiEditor:
                 contents=contents
             )
 
-            # Extract composite image
+            
             image_parts = [
                 part.inline_data.data
                 for part in response.candidates[0].content.parts
@@ -274,7 +274,7 @@ class FirecrawlGeminiEditor:
                 current_image_bytes = image_data
 
             if save_intermediates:
-                # Use provided output_dir or default to current directory
+                
                 save_dir = Path(output_dir) if output_dir else Path.cwd()
                 save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -289,7 +289,7 @@ class FirecrawlGeminiEditor:
                     contents=[refinement, current_image]
                 )
 
-                # Extract refined image
+                
                 image_parts = [
                     part.inline_data.data
                     for part in response.candidates[0].content.parts
@@ -322,13 +322,13 @@ class FirecrawlGeminiEditor:
                 if self.verbose:
                     print(f"\nProcessing {i}/{len(urls)}: {url}")
 
-                # Capture screenshot
+                
                 screenshot_data = self.capture_screenshot(url)
 
-                # Apply edit
+                
                 edited_image = self.edit_image_with_prompt(screenshot_data, edit_prompt)
 
-                # Save result
+                
                 domain = urlparse(url).netloc.replace('www.', '')
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 output_path = Path(output_dir) / f"{domain}_{timestamp}.png"
@@ -348,7 +348,7 @@ class FirecrawlGeminiEditor:
     def edit_image_with_prompt(self, image_data: str, edit_prompt: str, enhance_quality: bool = True) -> bytes:
         """Edit existing image using Gemini with quality enhancement and error handling."""
         try:
-            # Add quality enhancement to edit prompt
+            
             if enhance_quality:
                 quality_enhanced_prompt = f"""{edit_prompt}
 
@@ -365,11 +365,11 @@ class FirecrawlGeminiEditor:
             if self.verbose:
                 print(f"Editing image with HIGH QUALITY prompt: {quality_enhanced_prompt[:100]}...")
 
-            # Convert base64 to PIL Image
+            
             image_bytes = base64.b64decode(image_data)
             image = Image.open(BytesIO(image_bytes))
 
-            # Add size information to verbose output
+            
             if self.verbose:
                 print(f"Input image size: {image.size}, mode: {image.mode}")
 
@@ -378,7 +378,7 @@ class FirecrawlGeminiEditor:
                 contents=[quality_enhanced_prompt, image]
             )
 
-            # Extract edited image data
+            
             image_parts = [
                 part.inline_data.data
                 for part in response.candidates[0].content.parts
@@ -404,25 +404,25 @@ class FirecrawlGeminiEditor:
             output_file = Path(output_path).resolve()
             output_file.parent.mkdir(parents=True, exist_ok=True)
 
-            # Open and verify image
+            
             image = Image.open(BytesIO(image_data))
 
             if self.verbose:
                 print(f"Saving HIGH QUALITY image: {image.format} {image.size} to {output_file}")
 
-            # Save with quality optimization
+            
             if optimize_quality and output_path.lower().endswith(('.jpg', '.jpeg')):
-                # For JPEG, use maximum quality
+                
                 image.save(output_file, quality=100, optimize=False, subsampling=0)
                 if self.verbose:
                     print("Saved as JPEG with maximum quality (100)")
             elif optimize_quality and output_path.lower().endswith('.png'):
-                # For PNG, save with best compression
-                image.save(output_file, compress_level=1)  # Lower compression = better quality
+                
+                image.save(output_file, compress_level=1)  
                 if self.verbose:
                     print("Saved as PNG with minimal compression for best quality")
             else:
-                # Save original bytes directly for best fidelity
+                
                 with open(output_file, 'wb') as f:
                     f.write(image_data)
                 if self.verbose:
@@ -506,10 +506,10 @@ PRESET STYLES:
         """
     )
 
-    # Main input arguments
+    
     parser.add_argument('urls', nargs='*', help='Website URLs or image files')
 
-    # Operation modes (mutually exclusive)
+    
     mode_group = parser.add_mutually_exclusive_group()
     mode_group.add_argument('--generate', metavar='PROMPT',
                            help='Generate image from text prompt')
@@ -527,20 +527,20 @@ PRESET STYLES:
     mode_group.add_argument('--refine', nargs='+', metavar='STEP',
                            help='Apply step-by-step refinements')
 
-    # Input/Output options
+    
     io_group = parser.add_argument_group('Input/Output')
     io_group.add_argument('--output', '-o', help='Output filename')
     io_group.add_argument('--output-dir', default='output', help='Output directory')
     io_group.add_argument('--batch', metavar='FILE', help='Process URLs from file')
     io_group.add_argument('--compose', nargs='+', metavar='IMAGE', help='Additional images')
 
-    # Screenshot options
+    
     screenshot_group = parser.add_argument_group('Screenshot Options')
     screenshot_group.add_argument('--mobile', action='store_true', help='Mobile viewport')
     screenshot_group.add_argument('--viewport-only', action='store_true', help='Viewport only')
     screenshot_group.add_argument('--wait', type=int, default=3, help='Wait seconds before capture')
 
-    # Processing options
+    
     process_group = parser.add_argument_group('Processing Options')
     process_group.add_argument('--preserve-content', action='store_true',
                               help='Preserve original layout')
@@ -550,16 +550,16 @@ PRESET STYLES:
                               help='Maximum quality (default: on)')
     process_group.add_argument('--verbose', '-v', action='store_true', help='Show details')
 
-    # API configuration
+    
     api_group = parser.add_argument_group('API Configuration')
     api_group.add_argument('--firecrawl-url', help='Custom Firecrawl endpoint')
 
     args = parser.parse_args()
 
-    # Validate environment
+    
     firecrawl_key, gemini_key = validate_environment()
 
-    # Initialize editor
+    
     editor = FirecrawlGeminiEditor(
         firecrawl_key, gemini_key,
         firecrawl_url=args.firecrawl_url,
@@ -567,9 +567,9 @@ PRESET STYLES:
     )
 
     try:
-        # Process based on mode
+        
         if args.generate:
-            # Text-to-image generation
+            
             print("Generating image from text...")
             image_data = editor.generate_image_from_text(
                 args.generate,
@@ -579,7 +579,7 @@ PRESET STYLES:
             result = editor.save_image(image_data, output_path)
 
         elif args.batch:
-            # Batch processing
+            
             print(f"Batch processing from {args.batch}...")
             with open(args.batch, 'r') as f:
                 urls = [line.strip() for line in f if line.strip()]
@@ -590,11 +590,11 @@ PRESET STYLES:
             result = args.output_dir
 
         elif args.composite or len(args.urls) > 1:
-            # Multi-image composition
+            
             print("Creating composite image...")
             images = []
 
-            # Capture screenshots from URLs
+            
             for url in args.urls:
                 if url.startswith('http'):
                     print(f"Capturing: {url}")
@@ -606,11 +606,11 @@ PRESET STYLES:
                     )
                     images.append(screenshot)
                 else:
-                    # Load local image
+                    
                     with open(url, 'rb') as f:
                         images.append(base64.b64encode(f.read()).decode())
 
-            # Add compose images if specified
+            
             if args.compose:
                 for img_path in args.compose:
                     with open(img_path, 'rb') as f:
@@ -623,7 +623,7 @@ PRESET STYLES:
             result = editor.save_image(composite, output_path)
 
         elif args.refine:
-            # Iterative refinement
+            
             if not args.urls:
                 print("Error: URL required for refinement")
                 sys.exit(1)
@@ -637,7 +637,7 @@ PRESET STYLES:
             )
 
             print(f"Applying {len(args.refine)} refinements...")
-            # Use output_dir if provided, otherwise save in current directory
+            
             refinement_dir = args.output_dir if args.save_intermediates else None
             if args.save_intermediates and refinement_dir:
                 print(f"Saving intermediates to: {refinement_dir}")
@@ -655,7 +655,7 @@ PRESET STYLES:
             result = editor.save_image(refined, output_path)
 
         elif args.artistic:
-            # Artistic style transfer
+            
             if not args.urls:
                 print("Error: URL required for style transfer")
                 sys.exit(1)
@@ -679,7 +679,7 @@ PRESET STYLES:
             result = editor.save_image(styled, output_path)
 
         else:
-            # Standard screenshot editing
+            
             if not args.urls:
                 print("Error: URL required")
                 sys.exit(1)
@@ -692,7 +692,7 @@ PRESET STYLES:
                 wait_time=args.wait
             )
 
-            # Determine edit prompt
+            
             if args.style:
                 style_prompts = {
                     'cyberpunk': 'Transform into cyberpunk style with neon colors',

@@ -1,10 +1,10 @@
 const fs = require("fs");
 
-// METHOD: Winston log file
-// const logs = fs.readFileSync("7a373219-0eb4-4e47-b2df-e90e12afd5c1.log", "utf8")
-//     .split("\n").filter(x => x.trim().length > 0).map(x => JSON.parse(x));
 
-// METHOD: GCloud export
+
+
+
+
 const logs = [
     "downloaded-logs-20241213-225607.json",
     "downloaded-logs-20241213-225654.json",

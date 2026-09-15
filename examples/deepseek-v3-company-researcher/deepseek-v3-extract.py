@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from serpapi.google_search import GoogleSearch
 from openai import OpenAI
 
-# ANSI color codes
+
 class Colors:
     CYAN = '\033[96m'
     YELLOW = '\033[93m'
@@ -16,10 +16,10 @@ class Colors:
     BLUE = '\033[94m'
     RESET = '\033[0m'
 
-# Load environment variables
+
 load_dotenv()
 
-# Initialize clients
+
 openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
 firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
 serp_api_key = os.getenv("SERP_API_KEY")
@@ -31,7 +31,7 @@ if not firecrawl_api_key:
 if not serp_api_key:
     print(f"{Colors.RED}Warning: SERP_API_KEY not found in environment variables{Colors.RESET}")
 
-# Initialize OpenRouter client
+
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=openrouter_api_key
@@ -42,14 +42,14 @@ def clean_url(url):
     if not isinstance(url, str):
         return None
     
-    # Remove any query parameters
+    
     base_url = url.split('?')[0]
     
-    # Remove trailing slashes and cleanup
+    
     cleaned = base_url.rstrip('/')
     cleaned = cleaned.replace('/*', '')
     
-    # Ensure it's a valid http(s) URL
+    
     if not cleaned.startswith(('http://', 'https://')):
         return None
         
@@ -83,7 +83,7 @@ def select_urls_with_claude(company, objective, serp_results):
             "Response Format: {\"selected_urls\": [\"https://example.com\", \"https://example2.com\"]}"
         )
 
-        # Using OpenRouter's API to select URLs
+        
         response = client.chat.completions.create(
             model="deepseek/deepseek-chat-v3-0324:free",
             messages=[{
@@ -97,7 +97,7 @@ def select_urls_with_claude(company, objective, serp_results):
         
         result = response.choices[0].message.content.strip()
         
-        # Clean the response text
+        
         if result.startswith('```'):
             result = result.split('```')[1]
             if result.startswith('json'):
@@ -105,20 +105,20 @@ def select_urls_with_claude(company, objective, serp_results):
         result = result.strip()
 
         try:
-            # Parse JSON response
+            
             parsed_result = json.loads(result)
             if isinstance(parsed_result, dict) and "selected_urls" in parsed_result:
                 urls = parsed_result["selected_urls"]
             else:
-                # Fallback to text parsing
+                
                 urls = [line.strip() for line in result.split('\n') 
                        if line.strip().startswith(('http://', 'https://'))]
         except json.JSONDecodeError:
-            # Fallback to text parsing
+            
             urls = [line.strip() for line in result.split('\n') 
                    if line.strip().startswith(('http://', 'https://'))]
 
-        # Clean up URLs
+        
         cleaned_urls = [url.replace('/*', '').rstrip('/') for url in urls]
         cleaned_urls = [url for url in cleaned_urls if url]
 

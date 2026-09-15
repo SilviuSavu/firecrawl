@@ -4,7 +4,7 @@ import json
 from dotenv import load_dotenv
 from mistralai import Mistral
 
-# ANSI color codes
+
 class Colors:
     CYAN = '\033[96m'
     YELLOW = '\033[93m'
@@ -14,18 +14,18 @@ class Colors:
     BLUE = '\033[94m'
     RESET = '\033[0m'
 
-# Load environment variables
+
 load_dotenv()
 
-# Retrieve API keys from environment variables
+
 firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
 mistral_api_key = os.getenv("MISTRAL_API_KEY")
 
-# Initialize the FirecrawlApp and Mistral client
+
 app = FirecrawlApp(api_key=firecrawl_api_key)
 client = Mistral(api_key=mistral_api_key)
 
-# Find the page that most likely contains the objective
+
 def find_relevant_page_via_map(objective, url, app, client):
     try:
         print(f"{Colors.CYAN}Understood. The objective is: {objective}{Colors.RESET}")
@@ -52,14 +52,14 @@ def find_relevant_page_via_map(objective, url, app, client):
         print(f"{Colors.YELLOW}Mapping website using the identified search parameter...{Colors.RESET}")
         map_website = app.map_url(url, params={"search": map_search_parameter})
         
-        # Debug print to see the response structure
+        
         print(f"{Colors.MAGENTA}Debug - Map response structure: {json.dumps(map_website, indent=2)}{Colors.RESET}")
         
         print(f"{Colors.GREEN}Website mapping completed successfully.{Colors.RESET}")
         
-        # Handle the response based on its structure
+        
         if isinstance(map_website, dict):
-            # Assuming the links are in a 'urls' or similar key
+            
             links = map_website.get('urls', []) or map_website.get('links', [])
         elif isinstance(map_website, str):
             try:
@@ -116,20 +116,20 @@ def find_relevant_page_via_map(objective, url, app, client):
             ]
         )
 
-        # Debug print to see Mistral's raw response
+        
         print(f"{Colors.MAGENTA}Debug - Mistral's raw response:{Colors.RESET}")
         print(f"{Colors.MAGENTA}{completion.choices[0].message.content}{Colors.RESET}")
 
         try:
-            # Try to clean the response by stripping any potential markdown or extra whitespace
+            
             cleaned_response = completion.choices[0].message.content.strip()
             print(f"{Colors.YELLOW}Attempting to extract JSON from response...{Colors.RESET}")
             
-            # Extract JSON block if it exists between triple backticks
+            
             if "```json" in cleaned_response and "```" in cleaned_response.split("```json", 1)[1]:
                 print(f"{Colors.GREEN}Found JSON code block, extracting...{Colors.RESET}")
                 cleaned_response = cleaned_response.split("```json", 1)[1].split("```", 1)[0].strip()
-            # If no code blocks but contains square brackets, try to extract just the JSON array
+            
             elif "[" in cleaned_response and "]" in cleaned_response:
                 print(f"{Colors.GREEN}Found JSON array markers, extracting...{Colors.RESET}")
                 start_idx = cleaned_response.find("[")
@@ -140,7 +140,7 @@ def find_relevant_page_via_map(objective, url, app, client):
             ranked_results = json.loads(cleaned_response)
             print(f"{Colors.GREEN}Successfully parsed JSON response{Colors.RESET}")
             
-            # Validate the structure of the results
+            
             if not isinstance(ranked_results, list):
                 raise ValueError("Response is not a list")
             
@@ -150,7 +150,7 @@ def find_relevant_page_via_map(objective, url, app, client):
             
             links = [result["url"] for result in ranked_results]
             
-            # Print detailed ranking info
+            
             print(f"{Colors.CYAN}Top 3 ranked URLs:{Colors.RESET}")
             for result in ranked_results:
                 print(f"{Colors.GREEN}URL: {result['url']}{Colors.RESET}")
@@ -173,10 +173,10 @@ def find_relevant_page_via_map(objective, url, app, client):
         print(f"{Colors.RED}Error encountered during relevant page identification: {str(e)}{Colors.RESET}")
         return None
     
-# Scrape the top 3 pages and see if the objective is met, if so return in json format else return None
+
 def find_objective_in_top_pages(map_website, objective, app, client):
     try:
-        # Get top 3 links from the map result
+        
         if not map_website:
             print(f"{Colors.RED}No links found to analyze.{Colors.RESET}")
             return None
@@ -211,12 +211,12 @@ def find_objective_in_top_pages(map_website, objective, app, client):
             
             result = completion.choices[0].message.content.strip()
             
-            # Clean up the response if it contains markdown formatting
-            # Extract JSON block if it exists between triple backticks
+            
+            
             if "```json" in result and "```" in result.split("```json", 1)[1]:
                 print(f"{Colors.GREEN}Found JSON code block, extracting...{Colors.RESET}")
                 result = result.split("```json", 1)[1].split("```", 1)[0].strip()
-            # If no code blocks but contains curly braces, try to extract just the JSON object
+            
             elif result != "Objective not met" and "{" in result and "}" in result:
                 print(f"{Colors.GREEN}Found JSON object markers, extracting...{Colors.RESET}")
                 start_idx = result.find("{")
@@ -245,19 +245,19 @@ def find_objective_in_top_pages(map_website, objective, app, client):
         print(f"{Colors.RED}Error encountered during page analysis: {str(e)}{Colors.RESET}")
         return None
 
-# Main function to execute the process
+
 def main():
-    # Get user input
+    
     url = input(f"{Colors.BLUE}Enter the website to crawl : {Colors.RESET}")
     objective = input(f"{Colors.BLUE}Enter your objective: {Colors.RESET}")
     
     print(f"{Colors.YELLOW}Initiating web crawling process...{Colors.RESET}")
-    # Find the relevant page
+    
     map_website = find_relevant_page_via_map(objective, url, app, client)
     
     if map_website:
         print(f"{Colors.GREEN}Relevant pages identified. Proceeding with detailed analysis using Mistral Small 3.1...{Colors.RESET}")
-        # Find objective in top pages
+        
         result = find_objective_in_top_pages(map_website, objective, app, client)
         
         if result:

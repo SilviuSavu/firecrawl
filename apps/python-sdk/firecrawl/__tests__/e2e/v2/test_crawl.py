@@ -51,13 +51,13 @@ class TestCrawlE2E:
 
     def test_get_crawl_status(self):
         """Test getting crawl status."""
-        # First start a crawl
+        
         start_job = self.client.start_crawl("https://docs.firecrawl.dev", limit=3)
         assert start_job.id is not None
         
         job_id = start_job.id
         
-        # Get status
+        
         status_job = self.client.get_crawl_status(job_id)
         
         assert status_job.status in ["scraping", "completed", "failed"]
@@ -106,22 +106,22 @@ class TestCrawlE2E:
 
     def test_get_crawl_errors(self):
         """Test getting crawl errors."""
-        # First start a crawl
+        
         start_job = self.client.start_crawl("https://docs.firecrawl.dev", limit=3)
         assert start_job.id is not None
         
         job_id = start_job.id
         
-        # Get errors (should work even if no errors exist)
+        
         errors_response = self.client.get_crawl_errors(job_id)
         
-        # Verify the response structure
+        
         assert hasattr(errors_response, 'errors')
         assert hasattr(errors_response, 'robots_blocked')
         assert isinstance(errors_response.errors, list)
         assert isinstance(errors_response.robots_blocked, list)
         
-        # Errors list should contain dictionaries with expected fields
+        
         for error in errors_response.errors:
             assert isinstance(error, dict)
             assert 'id' in error
@@ -133,7 +133,7 @@ class TestCrawlE2E:
             assert isinstance(error['url'], str)
             assert isinstance(error['error'], str)
         
-        # Robots blocked should be a list of strings
+        
         for blocked_url in errors_response.robots_blocked:
             assert isinstance(blocked_url, str)
 
@@ -144,16 +144,16 @@ class TestCrawlE2E:
 
     def test_get_active_crawls(self):
         """Test getting active crawls."""
-        # Get active crawls
+        
         active_crawls_response = self.client.active_crawls()
         
-        # Verify the response structure
+        
         assert hasattr(active_crawls_response, 'success')
         assert hasattr(active_crawls_response, 'crawls')
         assert isinstance(active_crawls_response.success, bool)
         assert isinstance(active_crawls_response.crawls, list)
         
-        # Each crawl should have the required fields
+        
         for crawl in active_crawls_response.crawls:
             assert hasattr(crawl, 'id')
             assert hasattr(crawl, 'team_id')
@@ -162,30 +162,30 @@ class TestCrawlE2E:
             assert isinstance(crawl.team_id, str)
             assert isinstance(crawl.url, str)
             
-            # Options field is optional but if present should be a dict
+            
             if hasattr(crawl, 'options') and crawl.options is not None:
                 assert isinstance(crawl.options, dict)
 
     def test_get_active_crawls_with_running_crawl(self):
         """Test getting active crawls when there's a running crawl."""
-        # Start a crawl
+        
         start_job = self.client.start_crawl("https://docs.firecrawl.dev", limit=5)
         assert start_job.id is not None
         
-        # Get active crawls
+        
         active_crawls_response = self.client.active_crawls()
         
-        # Verify the response structure
+        
         assert hasattr(active_crawls_response, 'success')
         assert hasattr(active_crawls_response, 'crawls')
         assert isinstance(active_crawls_response.success, bool)
         assert isinstance(active_crawls_response.crawls, list)
         
-        # The started crawl should be in the active crawls list
+        
         active_crawl_ids = [crawl.id for crawl in active_crawls_response.crawls]
         assert start_job.id in active_crawl_ids
         
-        # Cancel the crawl to clean up
+        
         self.client.cancel_crawl(start_job.id)
 
     def test_crawl_with_wait(self):

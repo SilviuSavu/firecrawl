@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Brave Search API (https://api.search.brave.com) via the official REST API.
 
 The stock SearXNG `braveapi` engine reads its key from settings.yml, which is
@@ -41,7 +41,7 @@ language_support = True
 time_range_support = True
 safesearch = True
 
-# SearXNG time_range -> Brave `freshness` quick-range value.
+
 _FRESHNESS = {"day": "pd", "week": "pw", "month": "pm", "year": "py"}
 _SAFESEARCH = {0: "off", 1: "moderate", 2: "strict"}
 _BASE_URL = "https://api.search.brave.com/res/v1/web/search"
@@ -52,7 +52,7 @@ def request(query, params):
     if not api_key:
         raise SearxEngineAPIException("BRAVE_API_KEY env var is not set")
 
-    # SearXNG language is BCP47 ("en-US") or "all"; map to Brave search_lang/country.
+    
     lang = (params.get("language") or "en").replace("all", "en").lower()
     country = (params.get("country") or "").lower()
     parts = lang.split("-")
@@ -71,7 +71,7 @@ def request(query, params):
         "search_lang": search_lang,
         "country": country or "us",
         "safesearch": _SAFESEARCH.get(ss, "off"),
-        "text_decorations": "false",  # plain snippets, no <strong> markup
+        "text_decorations": "false",  
         "result_filter": "web",
     }
 
@@ -97,7 +97,7 @@ def response(resp):
     except ValueError:
         raise SearxEngineAPIException("invalid JSON response from Brave API")
 
-    # Brave returns JSON with an error field on auth/quota/parameter failures.
+    
     if isinstance(data, dict) and data.get("error"):
         raise SearxEngineAPIException(str(data["error"]))
 
@@ -114,9 +114,9 @@ def response(resp):
             }
         )
 
-    # Infobox / knowledge panel. Surfaced as a SearXNG infobox; Firecrawl's
-    # organic-only /v1/search transform drops infoboxes, so this is a bonus for
-    # direct SearXNG consumers rather than a Firecrawl path.
+    
+    
+    
     infobox = data.get("infobox")
     if isinstance(infobox, dict) and (infobox.get("description") or infobox.get("long_desc")):
         results.append(

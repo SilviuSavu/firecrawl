@@ -21,7 +21,7 @@ class TestCrawlRequestValidation:
     def test_validate_valid_url(self):
         """Test validation with valid URL."""
         request = CrawlRequest(url="https://example.com")
-        _validate_crawl_request(request)  # Should not raise
+        _validate_crawl_request(request)  
 
     def test_validate_invalid_limit(self):
         """Test validation with invalid limit."""
@@ -47,7 +47,7 @@ class TestCrawlRequestValidation:
             url="https://example.com",
             limit=10
         )
-        _validate_crawl_request(request)  # Should not raise
+        _validate_crawl_request(request)  
 
     def test_validate_with_prompt(self):
         """Test validation with prompt."""
@@ -55,7 +55,7 @@ class TestCrawlRequestValidation:
             url="https://example.com",
             prompt="Extract all blog posts"
         )
-        _validate_crawl_request(request)  # Should not raise
+        _validate_crawl_request(request)  
 
     def test_validate_with_prompt_and_options(self):
         """Test validation with prompt and options."""
@@ -64,12 +64,12 @@ class TestCrawlRequestValidation:
             prompt="Extract all blog posts",
             limit=10
         )
-        _validate_crawl_request(request)  # Should not raise
+        _validate_crawl_request(request)  
 
     def test_validate_none_options(self):
         """Test validation with None options."""
         request = CrawlRequest(url="https://example.com")
-        _validate_crawl_request(request)  # Should not raise
+        _validate_crawl_request(request)  
 
     def test_validate_complex_options(self):
         """Test validation with complex options."""
@@ -85,19 +85,19 @@ class TestCrawlRequestValidation:
             max_discovery_depth=3,
             scrape_options=scrape_opts
         )
-        _validate_crawl_request(request)  # Should not raise
+        _validate_crawl_request(request)  
 
     def test_validate_scrape_options_integration(self):
         """Test that scrape_options validation is integrated."""
-        # Test with valid scrape options
+        
         scrape_opts = ScrapeOptions(formats=["markdown"], timeout=30000)
         request = CrawlRequest(
             url="https://example.com",
             scrape_options=scrape_opts
         )
-        _validate_crawl_request(request)  # Should not raise
+        _validate_crawl_request(request)  
 
-        # Test with invalid scrape options (should raise error)
+        
         invalid_scrape_opts = ScrapeOptions(timeout=-1000)
         request = CrawlRequest(
             url="https://example.com",

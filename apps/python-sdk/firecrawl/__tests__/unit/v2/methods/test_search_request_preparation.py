@@ -11,12 +11,12 @@ class TestSearchRequestPreparation:
         request = SearchRequest(query="test query")
         data = _prepare_search_request(request)
     
-        # Check basic fields
+        
         assert data["query"] == "test query"
         assert data["limit"] == 5
         assert data["timeout"] == 300000
         
-        # Check that snake_case fields are not present
+        
         assert "ignore_invalid_urls" not in data
         assert "scrape_options" not in data
 
@@ -51,7 +51,7 @@ class TestSearchRequestPreparation:
         
         data = _prepare_search_request(request)
         
-        # Check all basic fields
+        
         assert data["query"] == "test query"
         assert data["limit"] == 10
         assert data["tbs"] == "qdr:w"
@@ -59,7 +59,7 @@ class TestSearchRequestPreparation:
         assert data["timeout"] == 30000
         assert data["highlights"] is False
         
-        # Check snake_case to camelCase conversions
+        
         assert "ignoreInvalidURLs" in data
         assert data["ignoreInvalidURLs"] is False
         assert "ignore_invalid_urls" not in data
@@ -67,7 +67,7 @@ class TestSearchRequestPreparation:
         assert "scrapeOptions" in data
         assert "scrape_options" not in data
         
-        # Check sources
+        
         assert "sources" in data
         assert len(data["sources"]) == 2
         assert data["sources"][0]["type"] == "web"
@@ -75,7 +75,7 @@ class TestSearchRequestPreparation:
         assert data["includeDomains"] == ["firecrawl.dev"]
         assert "include_domains" not in data
         
-        # Check nested scrape options conversions
+        
         scrape_data = data["scrapeOptions"]
         assert "includeTags" in scrape_data
         assert scrape_data["includeTags"] == ["h1", "h2"]
@@ -106,9 +106,9 @@ class TestSearchRequestPreparation:
     
         data = _prepare_search_request(request)
     
-        # When limit and timeout are explicitly None, they should be excluded
+        
         assert "query" in data
-        assert len(data) == 1  # Only query should be present
+        assert len(data) == 1  
 
     def test_domain_filters_are_mutually_exclusive(self):
         """Test that include_domains and exclude_domains cannot both be set."""
@@ -124,7 +124,7 @@ class TestSearchRequestPreparation:
 
     def test_empty_scrape_options(self):
         """Test that empty scrape options are handled correctly."""
-        scrape_opts = ScrapeOptions()  # All defaults
+        scrape_opts = ScrapeOptions()  
         
         request = SearchRequest(
             query="test",
@@ -136,7 +136,7 @@ class TestSearchRequestPreparation:
         assert "scrapeOptions" in data
         scrape_data = data["scrapeOptions"]
         
-        # Should have default values
+        
         assert "onlyMainContent" in scrape_data
         assert scrape_data["onlyMainContent"] is True
         assert "mobile" in scrape_data
@@ -144,7 +144,7 @@ class TestSearchRequestPreparation:
 
     def test_scrape_options_shared_function_integration(self):
         """Test that the shared prepare_scrape_options function is being used."""
-        # Test with all snake_case fields to ensure conversion
+        
         scrape_opts = ScrapeOptions(
             formats=["markdown", "rawHtml"],
             include_tags=["h1", "h2"],
@@ -153,7 +153,7 @@ class TestSearchRequestPreparation:
             wait_for=2000,
             skip_tls_verification=True,
             remove_base64_images=False
-            # Note: raw_html should be in formats array, not as a separate field
+            
         )
         
         request = SearchRequest(
@@ -163,11 +163,11 @@ class TestSearchRequestPreparation:
         
         data = _prepare_search_request(request)
         
-        # Check that scrapeOptions is present and converted
+        
         assert "scrapeOptions" in data
         scrape_data = data["scrapeOptions"]
         
-        # Check all conversions are working
+        
         assert "formats" in scrape_data
         assert scrape_data["formats"] == ["markdown", "rawHtml"]
         assert "includeTags" in scrape_data
@@ -177,7 +177,7 @@ class TestSearchRequestPreparation:
         assert "skipTlsVerification" in scrape_data
         assert "removeBase64Images" in scrape_data
         
-        # Check that snake_case fields are not present
+        
         assert "include_tags" not in scrape_data
         assert "exclude_tags" not in scrape_data
         assert "only_main_content" not in scrape_data

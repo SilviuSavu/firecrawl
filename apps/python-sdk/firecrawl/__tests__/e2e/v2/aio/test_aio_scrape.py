@@ -33,7 +33,7 @@ async def test_async_scrape_minimal():
 @pytest.mark.asyncio
 async def test_async_scrape_with_all_params():
     client = AsyncFirecrawl(api_key=os.getenv("API_KEY"), api_url=os.getenv("API_URL"))
-    # Include multiple formats with configuration
+    
     json_schema = {
         "type": "object",
         "properties": {"title": {"type": "string"}},

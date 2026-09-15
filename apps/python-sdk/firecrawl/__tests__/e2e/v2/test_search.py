@@ -115,14 +115,14 @@ def test_search_result_structure():
         assert isinstance(result.title, str) or result.title is None
         assert isinstance(result.description, str) or result.description is None
         
-        # Test URL format
+        
         assert result.url.startswith('http')
 
 def test_search_all_parameters():
     """Test search with all available parameters (comprehensive e2e test)."""
     from firecrawl.types import ScrapeOptions, JsonFormat, Location, WaitAction
     
-    # Define a schema for JSON extraction
+    
     schema = {
         "type": "object",
         "properties": {
@@ -140,7 +140,7 @@ def test_search_all_parameters():
             {"type": "news"}
         ],
         limit=3,
-        tbs="qdr:m",  # Last month
+        tbs="qdr:m",  
         location="US",
         ignore_invalid_urls=True,
         timeout=60000,
@@ -166,7 +166,7 @@ def test_search_all_parameters():
             remove_base64_images=True,
             block_ads=True,
             proxy="basic",
-            max_age=3600000,  # 1 hour cache
+            max_age=3600000,  
             store_in_cache=True,
             location=Location(
                 country="US",
@@ -175,39 +175,39 @@ def test_search_all_parameters():
             actions=[
                 WaitAction(milliseconds=1000)
             ]
-            # Note: raw_html and screenshot_full_page are not supported by v2 API yet
+            
         )
     )
     
-    # Test structure
+    
     assert isinstance(results, SearchData)
     assert hasattr(results, 'web')
     assert hasattr(results, 'news')
     assert hasattr(results, 'images')
     
-    # Test that web results exist
-    assert results.web is not None
-    assert len(results.web) <= 3  # Should respect limit
     
-    # Test that results contain expected content for non-document entries only
+    assert results.web is not None
+    assert len(results.web) <= 3  
+    
+    
     non_doc_entries = [r for r in (results.web or []) if not _is_document(r)]
     if non_doc_entries:
         all_web_text = ' '.join(_collect_texts(non_doc_entries))
         ai_terms = ['artificial', 'intelligence', 'ai', 'machine', 'learning']
         assert any(term in all_web_text for term in ai_terms)
     
-    # Test that each result has proper structure
+    
     for result in results.web:
         assert isinstance(result, (SearchResultWeb, Document))
         if isinstance(result, Document):
-            # Document path: ensure content present
+            
             assert (result.markdown is not None) or (result.html is not None)
         else:
-            # LinkResult path
+            
             assert hasattr(result, 'url')
             assert isinstance(result.url, str) and result.url.startswith('http')
     
-    # Test that news results exist (if API supports it)
+    
     if results.news is not None:
         assert len(results.news) <= 3
         for result in results.news:
@@ -218,7 +218,7 @@ def test_search_all_parameters():
                 assert hasattr(result, 'url')
                 assert isinstance(result.url, str) and result.url.startswith('http')
     
-    # Test that unspecified sources are None
+    
     assert results.images is None
 
 
@@ -226,7 +226,7 @@ def test_search_formats_flexibility():
     """Test that both list and ScrapeFormats work for formats."""
     from firecrawl.types import ScrapeFormats
     
-    # Test with list format
+    
     results1 = firecrawl.search(
         query="python programming",
         limit=1,
@@ -235,7 +235,7 @@ def test_search_formats_flexibility():
         )
     )
     
-    # Test with ScrapeFormats object
+    
     results2 = firecrawl.search(
         query="python programming", 
         limit=1,
@@ -244,7 +244,7 @@ def test_search_formats_flexibility():
         )
     )
     
-    # Both should work without errors
+    
     assert isinstance(results1, SearchData)
     assert isinstance(results2, SearchData)
     assert results1.web is not None

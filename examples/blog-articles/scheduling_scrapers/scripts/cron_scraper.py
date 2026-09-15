@@ -1,11 +1,11 @@
-# cron_scraper.py
+
 import sys
 import logging
 from datetime import datetime
 from pathlib import Path
 from firecrawl_scraper import save_firecrawl_news_data
 
-# Set up logging
+
 log_dir = Path("logs")
 log_dir.mkdir(exist_ok=True)
 log_file = log_dir / f"scraper_{datetime.now().strftime('%Y_%m')}.log"
