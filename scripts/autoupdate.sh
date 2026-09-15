@@ -28,6 +28,10 @@ if ! git merge "$LATEST" --no-edit >>"$LOG" 2>&1; then
   exit 1
 fi
 
+# Rebase the lockfile on upstream resolutions first: a conflicted/stale
+# lockfile makes pnpm re-resolve every range and float deps past tested
+# versions (cheerio 1.1 broke the pdf engine types that way).
+git checkout "$LATEST" -- apps/api/pnpm-lock.yaml
 if ! docker run --rm -v /opt/firecrawl/apps/api:/app -w /app node:22-slim bash -c \
   "corepack enable && corepack prepare pnpm@11.4.0 --activate && pnpm install --lockfile-only --ignore-scripts" >>"$LOG" 2>&1; then
   git reset --hard ORIG_HEAD >>"$LOG" 2>&1
