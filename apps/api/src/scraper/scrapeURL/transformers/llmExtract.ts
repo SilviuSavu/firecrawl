@@ -16,10 +16,9 @@ import {
   LanguageModel,
   NoObjectGeneratedError,
   jsonSchema,
-  tool,
 } from "ai";
 import { getModel } from "../../../lib/generic-ai";
-import { config } from "../../../config";
+import { generateStructuredObject } from "../../../lib/structured-output";
 import { z } from "zod";
 import fs from "fs/promises";
 import Ajv from "ajv";
@@ -312,61 +311,6 @@ export type GenerateCompletionsOptions = {
   };
   zeroDataRetention?: boolean;
 };
-/**
- * OpenAI-compatible third-party endpoints (Z.ai, and others) ignore
- * `response_format: {type: "json_schema"}`, which is what the AI SDK sends for
- * `generateObject`. They return prose instead, so schema parsing fails and the
- * extraction comes back empty. Those same endpoints do honour tool calling, so
- * force a single tool call and read its already-parsed arguments.
- */
-async function generateObjectViaToolCall(cfg: {
-  model: any;
-  prompt: any;
-  system?: any;
-  schema: any;
-  providerOptions?: any;
-  experimental_telemetry?: any;
-}): Promise<{
-  object: any;
-  usage: {
-    inputTokens?: number;
-    outputTokens?: number;
-    totalTokens?: number;
-  };
-}> {
-  const { text, toolCalls, usage } = await generateText({
-    model: cfg.model,
-    prompt: cfg.prompt,
-    system: cfg.system,
-    tools: {
-      extract_data: tool({
-        description:
-          "Return the structured data extracted from the page. Call this exactly once with every extracted field.",
-        inputSchema: cfg.schema,
-      }),
-    },
-    toolChoice: { type: "tool", toolName: "extract_data" },
-    providerOptions: cfg.providerOptions,
-    experimental_telemetry: cfg.experimental_telemetry,
-  });
-
-  const call = toolCalls.find((c) => c.toolName === "extract_data");
-  if (!call) {
-    throw new Error(
-      `Tool-call extraction produced no extract_data call${text ? `: ${text.slice(0, 200)}` : ""}`,
-    );
-  }
-
-  return {
-    object: (call as any).input,
-    usage: {
-      inputTokens: usage?.inputTokens,
-      outputTokens: usage?.outputTokens,
-      totalTokens: usage?.totalTokens,
-    },
-  };
-}
-
 export async function generateCompletions({
   logger,
   options,
@@ -866,22 +810,13 @@ export async function generateCompletions({
           };
         }
       | undefined;
-    const useToolCallExtraction =
-      !!schema &&
-      (currentModel as any)?.provider === "openai.chat" &&
-      !!config.OPENAI_BASE_URL;
-
     try {
-      result = useToolCallExtraction
-        ? await generateObjectViaToolCall(generateObjectConfig)
-        : await generateObject(generateObjectConfig);
+      result = await generateStructuredObject(generateObjectConfig);
       costTrackingOptions.costTracking.addCall({
         type: "other",
         metadata: {
           ...costTrackingOptions.metadata,
-          gcDetails: useToolCallExtraction
-            ? "generateText/tool-call"
-            : "generateObject",
+          gcDetails: "generateStructuredObject",
           gcModel: generateObjectConfig.model.modelId,
         },
         tokens: {
@@ -915,9 +850,7 @@ export async function generateCompletions({
             ...generateObjectConfig,
             model: currentModel,
           };
-          result = useToolCallExtraction
-            ? await generateObjectViaToolCall(retryConfig)
-            : await generateObject(retryConfig);
+          result = await generateStructuredObject(retryConfig);
           costTrackingOptions.costTracking.addCall({
             type: "other",
             metadata: {

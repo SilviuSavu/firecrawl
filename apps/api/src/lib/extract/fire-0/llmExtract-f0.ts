@@ -12,6 +12,7 @@ import { modelPrices } from "../../../lib/extract/usage/model-prices";
 import { generateObject, generateText, LanguageModel } from "ai";
 import { jsonSchema } from "ai";
 import { getModel } from "../../../lib/generic-ai";
+import { generateStructuredObject } from "../../../lib/structured-output";
 import { z } from "zod";
 
 // Get max tokens from model prices
@@ -424,7 +425,7 @@ export async function generateCompletions_F0({
       },
     } satisfies Parameters<typeof generateObject>[0];
 
-    const result = await generateObject(generateObjectConfig);
+    const result = await generateStructuredObject(generateObjectConfig);
     extract = result.object;
 
     // If the users actually wants the items object, they can specify it as 'required' in the schema

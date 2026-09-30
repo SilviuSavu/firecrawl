@@ -5,6 +5,7 @@ import { BrandingEnhancement, getBrandingEnhancementSchema } from "./schema";
 import { buildBrandingPrompt } from "./prompt";
 import { BrandingLLMInput } from "./types";
 import { getModel } from "../generic-ai";
+import { generateStructuredObject } from "../structured-output";
 
 function isDebugBrandingEnabled(input: BrandingLLMInput): boolean {
   return (
@@ -88,7 +89,7 @@ export async function enhanceBrandingWithLLM(
     );
     const schema = getBrandingEnhancementSchema(hasLogoCandidates);
 
-    const result = await generateObject({
+    const result = await generateStructuredObject({
       model,
       schema,
       providerOptions: {

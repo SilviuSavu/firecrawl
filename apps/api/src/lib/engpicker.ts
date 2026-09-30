@@ -9,6 +9,7 @@ import * as schema from "../db/schema";
 import { queryIndexAtDomainSplitLevelOmce } from "../db/rpc";
 import { CostTracking } from "./cost-tracking";
 import { getModel } from "./generic-ai";
+import { generateStructuredObject } from "./structured-output";
 import { logger as _logger } from "./logger";
 import type { Logger } from "winston";
 import {
@@ -68,7 +69,7 @@ async function evaluateURL(
   logger.info("Scrape completed, waiting for AI evaluation");
 
   // Use GPT-4o-mini to evaluate if the scrape was actually successful
-  const evaluationResult = await generateObject({
+  const evaluationResult = await generateStructuredObject({
     model: getModel("gpt-4o-mini", "openai"),
     schema: z.object({
       is_successful: z.boolean(),

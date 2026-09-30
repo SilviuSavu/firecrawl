@@ -11,6 +11,7 @@ import {
   UnsupportedFunctionalityError,
 } from "ai";
 import { getModel } from "../../../lib/generic-ai";
+import { generateStructuredObject } from "../../../lib/structured-output";
 import {
   CostLimitExceededError,
   CostTracking,
@@ -95,7 +96,7 @@ async function classifyChunk(
   const tagName = `untrusted_page_content_${crypto.randomUUID()}`;
 
   try {
-    const result = await generateObject({
+    const result = await generateStructuredObject({
       model,
       schema: injectionGuardSchema,
       system: buildGuardSystemPrompt(tagName),
