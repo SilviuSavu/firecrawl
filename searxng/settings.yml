@@ -198,3 +198,69 @@ engines:
 - name: mwmbl
   disabled: false
   weight: 0.4
+- name: hackernews
+  disabled: false
+  weight: 0.4
+- name: lobste.rs
+  disabled: false
+  weight: 0.4
+- name: crates.io
+  disabled: false
+  weight: 0.4
+- name: pypi
+  disabled: false
+  weight: 0.4
+- name: npm
+  disabled: false
+  weight: 0.4
+- name: pkg.go.dev
+  disabled: false
+  weight: 0.4
+- name: huggingface
+  disabled: false
+  weight: 0.4
+- name: codeberg
+  disabled: false
+  weight: 0.4
+- name: gitlab
+  disabled: false
+  weight: 0.4
+- name: arch linux wiki
+  disabled: false
+  weight: 0.4
+- name: nixos wiki
+  disabled: false
+  weight: 0.4
+- name: microsoft learn
+  disabled: false
+  weight: 0.4
+- name: national vulnerability database
+  disabled: false
+  weight: 0.4
+- name: sourcehut
+  disabled: false
+  weight: 0.4
+- name: rubygems
+  disabled: false
+  weight: 0.4
+- name: hex
+  disabled: false
+  weight: 0.4
+- name: metacpan
+  disabled: false
+  weight: 0.4
+- name: packagist
+  disabled: false
+  weight: 0.4
+- name: pub.dev
+  disabled: false
+  weight: 0.4
+- name: lib.rs
+  disabled: false
+  weight: 0.4
+- name: crossref
+  disabled: false
+  weight: 0.4
+- name: wikidata
+  disabled: false
+  weight: 0.4
