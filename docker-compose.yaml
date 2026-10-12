@@ -100,6 +100,7 @@ services:
       TAVILY_API_KEY: ${TAVILY_API_KEY}
       SEARXNG_SECRET: ${SEARXNG_SECRET}
       EXA_API_KEY: ${EXA_API_KEY}
+      MARGINALIA_API_KEY: ${MARGINALIA_API_KEY:-}
     volumes:
     - ./searxng/settings.yml:/etc/searxng/settings.template.yml:ro
     - ./searxng/serpapi.py:/usr/local/searxng/searx/engines/serpapi.py:ro
