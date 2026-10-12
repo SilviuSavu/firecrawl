@@ -176,3 +176,15 @@ engines:
   timeout: 3600.0
 - name: wttr.in
   timeout: 3600.0
+- name: mojeek
+  engine: mojeek
+  inactive: false
+  disabled: false
+  weight: 0.4
+- name: marginalia
+  engine: marginalia
+  # needs a real key from https://about.marginalia-search.com/article/api
+  api_key: public
+  inactive: false
+  disabled: true
+  weight: 0.4
