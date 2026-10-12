@@ -587,3 +587,19 @@ engines:
   disabled: false
   weight: 0.4
   categories: [images]
+
+- name: reddit
+  engine: reddit
+  shortcut: rdd
+  categories: [social media]
+  timeout: 5.0
+  weight: 0.4
+  disabled: false
+
+- name: bluesky
+  engine: bsky
+  shortcut: bsky
+  categories: [social media]
+  timeout: 5.0
+  weight: 0.4
+  disabled: false
