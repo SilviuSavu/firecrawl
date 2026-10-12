@@ -42,7 +42,7 @@ def _ensure_jwt():
         raise SearxEngineAccessDeniedException(
             "bluesky: set BSKY_IDENTIFIER/BSKY_APP_PASSWORD to activate"
         )
-    if _session["jwt"] and time.time() < _session["expires"] - 60:
+    if _session["jwt"] and time.time() < _session["expires"]:
         return _session["jwt"]
     req = _urlrequest.Request(
         "https://bsky.social/xrpc/com.atproto.server.createSession",
@@ -60,7 +60,7 @@ def _ensure_jwt():
             "bluesky: createSession HTTP %s" % exc.code
         )
     _session["jwt"] = data.get("accessJwt")
-    _session["expires"] = time.time() + 3600
+    _session["expires"] = time.time() + 150
     return _session["jwt"]
 
 
