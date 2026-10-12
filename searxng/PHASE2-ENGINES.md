@@ -1,42 +1,26 @@
-# Phase 2 engine candidates (not yet enabled)
+# Engine status after phase 2 (2026-10-13)
 
-Stock modules, disabled. Enable pattern (settings.yml, then `docker restart firecrawl-searxng-1`):
-    - name: <name>
-      disabled: false
-      weight: 0.4
+199 engines enabled. Live pool (SEARXNG_CATEGORIES=general,it,science): ~44 engines.
 
-## Books / shadow libraries (legal review before enabling)
-annas archive (stock module, shortcut !aaa variants), library genesis, openlibrary
-
-## Science / reference
-openalex (chronically flaky from this IP - retest), wikispecies, wolframalpha (needs API key)
-
-## General web
-qwant (partially Bing-backed, rate-limit history), yahoo, yacy, etymonline, jisho, duden, woxikon.de synonyme
-
-## Regional (own indexes)
-yandex, baidu, sogou, naver, seznam, 360search, quark, fireball (DE), gmx, fastbot, searchch, vuhuv, resulthunter, tusksearch, privacywall
-
-## News
-google news, qwant news, tagesschau, ansa, il post, bpb, tagesschau
-
-## Videos
-vimeo, odysee, bilibili, niconico, rumble, media.ccc.de, mediathekviewweb (DE public TV), ina, iqiyi, acfun, bitchute, peertube
-
-## Images
-openverse, flickr, findthatmeme, frinkiac, imgur, giphy, tineye (reverse image), artic, artstation, ipernity, public domain image archive, magnific, pixabay
-
-## Social / fediverse (lemmy+mastodon+tootfinder already ON)
-boardreader, 9gag
-
-## Movies / music / books / shopping / other
-imdb, tmdb, rottentomatoes, moviepilot, senscritique, bandcamp, deezer, yandex music, goodreads, steam, emojipedia, erowid, geizhals, destatis, podchaser, fyyd, chefkoch
-
-## Apps / package leftovers
-apk mirror, apple app store, google play apps, fdroid, anaconda, alpine linux packages, cachy os packages, voidlinux, bitbucket, gitea.com, free software directory, habrahabr, discuss.python, caddy.community, pi-hole.community, ollama, huggingface datasets, huggingface spaces
-
-## Weather / translate / map
-openmeteo, duckduckgo weather, lingva, mozhi, dictzone, mymemory translated, apple maps
-
-## Watch list
-- metacpan: REMOVED 2026-10-12 - chronic instant HTTP error from this network, auto-suspends (module likely broken or geo-blocked); retest on image update
+## Phase 2 outcome
+- ENABLED in default categories (bang-reachable, not in pool): annas archive, library
+  genesis, openlibrary, etymonline, jisho, duden, woxikon.de synonyme, qwant news,
+  tagesschau, ansa, il post, bpb, vimeo, odysee, bilibili, niconico, rumble,
+  media.ccc.de, mediathekviewweb (works), ina, iqiyi, acfun, bitchute, peertube,
+  openverse, flickr, findthatmeme, frinkiac, imgur, giphy, artic, artstation,
+  ipernity, public domain image archive, magnific, pixabay images, boardreader, 9gag,
+  imdb, tmdb, rottentomatoes, moviepilot, senscritique, bandcamp, deezer, yandex
+  music, goodreads, steam, emojipedia, erowid, geizhals, destatis, podchaser, fyyd,
+  chefkoch, apk mirror, apple app store, google play apps, fdroid, anaconda, alpine
+  linux packages, cachy os packages, voidlinux, bitbucket, gitea.com, free software
+  directory, habrahabr, discuss.python, caddy.community, pi-hole.community, ollama,
+  huggingface datasets, huggingface spaces, openmeteo, duckduckgo weather, dictzone,
+  mymemory translated, apple maps, tineye (images), wikispecies (science pool)
+- PARKED in custom category [regional] (bang-reachable, zero pool cost):
+  qwant (CAPTCHA in pool), yacy (SSL fail), yandex, baidu, sogou, naver, seznam,
+  360search, quark, fireball, gmx, fastbot, searchch, vuhuv, resulthunter,
+  tusksearch, privacywall
+- REMOVED (dead from this network): google news (access denied), lingva + mozhi
+  (dead public translate instances), openalex (chronic HTTP error; 2nd strike),
+  metacpan (phase 1; instant HTTP error)
+- NEVER ENABLED: wolframalpha (requires API key - get one to activate)
