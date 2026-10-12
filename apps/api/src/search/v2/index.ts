@@ -68,6 +68,9 @@ export async function search({
     // includeDomains/excludeDomains are enforced on returned URLs only on
     // the fire engine path above; the fallback providers below receive them
     // solely as the site: chain baked into the query.
+    let searxngMeta:
+      | { unresponsiveEngines?: string[]; provider?: string }
+      | undefined;
     if (config.SEARXNG_ENDPOINT) {
       logger.info("Using searxng search");
       const results = await searxng_search(query, {
@@ -86,6 +89,7 @@ export async function search({
         (results.images?.length ?? 0) > 0 ||
         (results.news?.length ?? 0) > 0;
       if (hasAny) return results;
+      searxngMeta = results.meta;
     }
 
     logger.info("Using DuckDuckGo search");
@@ -96,10 +100,21 @@ export async function search({
       proxy,
       timeout,
     });
-    if (ddgResults.web && ddgResults.web.length > 0) return ddgResults;
+    if (ddgResults.web && ddgResults.web.length > 0) {
+      ddgResults.meta = {
+        unresponsiveEngines: searxngMeta?.unresponsiveEngines ?? [],
+        provider: "duckduckgo",
+      };
+      return ddgResults;
+    }
 
     // Fallback to empty response
-    return {};
+    return {
+      meta: {
+        unresponsiveEngines: searxngMeta?.unresponsiveEngines ?? [],
+        provider: "duckduckgo",
+      },
+    };
   } catch (error) {
     logger.error(`Error in search function`, { error });
     return {};

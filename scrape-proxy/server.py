@@ -107,7 +107,7 @@ class Proxy(BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length", "0") or "0")
         return self.rfile.read(n) if n > 0 else b""
 
-    SEARCH_PATHS = {"/v1/search", "/search"}
+    SEARCH_PATHS = {"/v1/search", "/v2/search", "/search"}
 
     def _passthrough_local(self, body):
         """Forward any request to local unchanged (except /search timeout bump)."""

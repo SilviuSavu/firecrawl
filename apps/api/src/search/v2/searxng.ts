@@ -185,6 +185,7 @@ export async function fetchSearxngPage(
   url: string,
   params: Record<string, unknown>,
   { timeout, maxRetries }: { timeout: number; maxRetries: number },
+  meta?: { unresponsiveEngines: string[] },
 ): Promise<any[]> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
@@ -195,6 +196,11 @@ export async function fetchSearxngPage(
         timeout,
       });
       const data = response.data;
+      if (meta && data && Array.isArray(data.unresponsive_engines)) {
+        meta.unresponsiveEngines = data.unresponsive_engines
+          .map((e: unknown) => (Array.isArray(e) ? String(e[0]) : String(e)))
+          .filter(Boolean);
+      }
       return data && Array.isArray(data.results) ? data.results : [];
     } catch (error) {
       lastError = error;
@@ -227,11 +233,34 @@ export async function searxng_search(
   const cleanedUrl = url.endsWith("/") ? url.slice(0, -1) : url;
   const finalUrl = cleanedUrl + "/search";
 
-  // Per-request source types drive the SearXNG category filter. Fall back to
-  // the global SEARXNG_CATEGORIES only when no type was supplied.
-  const searxngCategories =
-    requestedTypes.map(t => SOURCE_TO_SEARXNG_CATEGORY[t]).join(",") ||
-    (config.SEARXNG_CATEGORIES ?? "");
+  // Per-request source types drive the SearXNG category filter. Requests that
+  // rely on the default (web) honor SEARXNG_CATEGORIES so the instance's
+  // curated pool (e.g. general+it) actually applies; explicit types map
+  // directly. The configured list also widens which result categories count
+  // as web so those engines are not fetched-then-dropped by the bucketing.
+  const configuredCategories = (config.SEARXNG_CATEGORIES ?? "")
+    .split(/[+,]/)
+    .map((c) => c.trim())
+    .filter(Boolean);
+  // The dispatcher materializes sources into an explicit type list (web is
+  // the default), so "explicit" cannot be detected here: web-bearing requests
+  // always widen to the configured pool instead of bare "general".
+  const searxngCategories = [
+    ...new Set(
+      requestedTypes.flatMap((t) =>
+        t === "web"
+          ? configuredCategories.length
+            ? configuredCategories
+            : ["general"]
+          : [SOURCE_TO_SEARXNG_CATEGORY[t]],
+      ),
+    ),
+  ].join(",");
+  const webCategories = new Set(
+    configuredCategories.length ? configuredCategories : ["general"],
+  );
+  webCategories.delete("images");
+  webCategories.delete("news");
 
   const fetchPage = (page: number): Promise<any[]> =>
     fetchSearxngPage(
@@ -248,6 +277,7 @@ export async function searxng_search(
         ...(options.safe ? { safesearch: 2 } : {}),
       },
       { timeout, maxRetries },
+      searchMeta,
     );
 
   const webResults: WebSearchResult[] = [];
@@ -257,7 +287,7 @@ export async function searxng_search(
   const bucket = (r: any) => {
     const category: string = typeof r.category === "string" ? r.category : "";
 
-    if (category === "general" && requestedTypeSet.has("web")) {
+    if (webCategories.has(category) && requestedTypeSet.has("web")) {
       webResults.push({
         url: r.url,
         title: r.title,
@@ -279,6 +309,10 @@ export async function searxng_search(
         imageUrl: r.thumbnail || undefined,
       });
     }
+  };
+
+  const searchMeta: { unresponsiveEngines: string[] } = {
+    unresponsiveEngines: [],
   };
 
   try {
@@ -326,11 +360,19 @@ export async function searxng_search(
           ...pageError,
         });
       } else {
-        logger.info("SearXNG returned no results", { query: q });
+        logger.warn("SearXNG returned no results", {
+          query: q,
+          unresponsiveEngines: searchMeta.unresponsiveEngines,
+        });
       }
     }
 
-    const response: SearchV2Response = {};
+    const response: SearchV2Response = {
+      meta: {
+        unresponsiveEngines: searchMeta.unresponsiveEngines,
+        provider: "searxng",
+      },
+    };
     if (webResults.length > 0) {
       response.web = webResults.slice(0, requestedResults);
     }
@@ -343,6 +385,6 @@ export async function searxng_search(
     return response;
   } catch (error) {
     logger.error("Unexpected SearXNG failure", { query: q, error });
-    return {};
+    return { meta: { unresponsiveEngines: searchMeta.unresponsiveEngines } };
   }
 }

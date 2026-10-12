@@ -44,7 +44,7 @@ engines:
   disabled: true
   weight: 0.4
 - name: duckduckgo
-  disabled: false
+  disabled: true
   weight: 0.4
 - name: brave
   disabled: true
@@ -53,7 +53,7 @@ engines:
   disabled: true
   weight: 0.4
 - name: google cse
-  disabled: false
+  disabled: true
   weight: 0.4
 - name: zimtitles
   engine: zimtitles
@@ -119,15 +119,13 @@ engines:
   shortcut: oa
   timeout: 10.0
   weight: 0.4
-  disabled: false
+  disabled: true
   categories:
   - general
   - science
   - offline
   paging: false
   enable_http: true
-- name: duckduckgo
-  disabled: true
 - name: google news
   disabled: true
 - name: startpage images
