@@ -125,12 +125,15 @@ services:
     restart: unless-stopped
     depends_on:
     - api
+    extra_hosts:
+    - oracle-zurich-relay.tail1a839a.ts.net:152.67.76.112
     environment:
       LOCAL_FIRECRAWL_URL: http://api:3002
       FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY}
+      YT_RELAY_URL: ${YT_RELAY_URL:-}
     volumes:
     - ./scrape-proxy/server.py:/app/server.py:ro
-    command: python /app/server.py
+    command: sh -c "pip install --no-cache-dir -q youtube-transcript-api && python /app/server.py"
     networks:
     - backend
     ports:

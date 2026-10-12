@@ -23,6 +23,7 @@ Failure detection (matches the extension's own contract + adds challenge heurist
 
 import json
 import os
+import re
 import ssl
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib import request as urlrequest
@@ -85,6 +86,66 @@ def _hdrs_in(source_headers):
     """Forward incoming headers, dropping hop-by-hop / host."""
     skip = {"host", "content-length", "connection", "transfer-encoding"}
     return {k: v for k, v in source_headers.items() if k.lower() not in skip}
+
+
+
+def _youtube_transcript(handler):
+    """Serve YouTube transcripts via youtube-transcript-api (keyless).
+
+    GET /v2/youtube-transcript?url=<watch url>&lang=en,de[&format=text]
+    GET /v2/youtube-transcript?video_id=<id>...
+    """
+    from urllib.parse import urlparse, parse_qs, unquote
+
+    def reply(status, payload):
+        body = (payload if isinstance(payload, str) else json.dumps(payload, ensure_ascii=False)).encode("utf-8")
+        handler.send_response(status)
+        handler.send_header("Content-Type", "text/plain; charset=utf-8" if isinstance(payload, str) else "application/json")
+        handler.send_header("Content-Length", str(len(body)))
+        handler.end_headers()
+        handler.wfile.write(body)
+
+    qs = parse_qs(urlparse(handler.path).query)
+    url = unquote(qs.get("url", [""])[0])
+    vid = qs.get("video_id", [""])[0]
+    if not vid and url:
+        m = re.search(r"(?:v=|youtu\.be/|shorts/|embed/)([A-Za-z0-9_-]{11})", url)
+        if m:
+            vid = m.group(1)
+    if not vid:
+        reply(400, {"success": False, "error": "provide ?url= or ?video_id="})
+        return
+    langs = [l.strip() for l in qs.get("lang", ["en"])[0].split(",") if l.strip()]
+    relay = os.environ.get("YT_RELAY_URL", "http://100.125.223.120:8300")
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+        fetched = YouTubeTranscriptApi().fetch(vid, languages=langs)
+        rows = fetched.to_raw_data()
+    except ImportError:
+        rows = None
+    except Exception:
+        rows = None
+    if rows is None:
+        # Home egress IPs are IpBlocked by YouTube; relay through the VPS.
+        try:
+            relay_qs = {"video_id": vid, "lang": ",".join(langs)}
+            if qs.get("format", ["json"])[0] == "text":
+                relay_qs["format"] = "text"
+            req = urlrequest.Request(
+                relay + "/transcript?" + __import__("urllib.parse", fromlist=["urlencode"]).urlencode(relay_qs),
+                headers={"Accept": "application/json"},
+            )
+            with urlrequest.urlopen(req, timeout=90) as rresp:
+                reply(rresp.status, rresp.read().decode("utf-8", "replace"))
+            return
+        except Exception as exc:
+            reply(502, {"success": False, "error": "local + relay both failed: %s" % str(exc)[:200], "video_id": vid})
+            return
+    text = "\n".join(r.get("text", "") for r in rows)
+    if qs.get("format", ["json"])[0] == "text":
+        reply(200, text)
+    else:
+        reply(200, {"success": True, "video_id": vid, "segments": len(rows), "text": text})
 
 
 class Proxy(BaseHTTPRequestHandler):
@@ -186,7 +247,9 @@ class Proxy(BaseHTTPRequestHandler):
             self._passthrough_local(body)
 
     def do_GET(self):
-        
+        if self.path.split("?", 1)[0].rstrip("/") == "/v2/youtube-transcript":
+            _youtube_transcript(self)
+            return
         self._passthrough_local(b"")
 
     def do_HEAD(self):
