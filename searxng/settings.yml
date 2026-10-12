@@ -192,3 +192,9 @@ engines:
   disabled: false
   timeout: 15.0
   weight: 0.4
+- name: yep
+  disabled: false
+  weight: 0.4
+- name: mwmbl
+  disabled: false
+  weight: 0.4
