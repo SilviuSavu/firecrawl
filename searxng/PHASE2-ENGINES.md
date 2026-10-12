@@ -39,4 +39,4 @@ apk mirror, apple app store, google play apps, fdroid, anaconda, alpine linux pa
 openmeteo, duckduckgo weather, lingva, mozhi, dictzone, mymemory translated, apple maps
 
 ## Watch list
-- metacpan: HTTP error on first pool query after enable (2026-10-12); disable if chronic
+- metacpan: REMOVED 2026-10-12 - chronic instant HTTP error from this network, auto-suspends (module likely broken or geo-blocked); retest on image update

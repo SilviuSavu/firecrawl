@@ -246,9 +246,6 @@ engines:
 - name: hex
   disabled: false
   weight: 0.4
-- name: metacpan
-  disabled: false
-  weight: 0.4
 - name: packagist
   disabled: false
   weight: 0.4
