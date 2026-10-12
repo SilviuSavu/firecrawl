@@ -101,11 +101,13 @@ services:
       SEARXNG_SECRET: ${SEARXNG_SECRET}
       EXA_API_KEY: ${EXA_API_KEY}
       MARGINALIA_API_KEY: ${MARGINALIA_API_KEY:-}
+      ZAI_API_KEY: ${ZAI_API_KEY:-}
     volumes:
     - ./searxng/settings.yml:/etc/searxng/settings.template.yml:ro
     - ./searxng/serpapi.py:/usr/local/searxng/searx/engines/serpapi.py:ro
     - ./searxng/bravesearch.py:/usr/local/searxng/searx/engines/bravesearch.py:ro
     - ./searxng/exa.py:/usr/local/searxng/searx/engines/exa.py:ro
+    - ./searxng/zaiprime.py:/usr/local/searxng/searx/engines/zaiprime.py:ro
     - ./searxng/tavily.py:/usr/local/searxng/searx/engines/tavily.py:ro
     - ./searxng/kiwix.py:/usr/local/searxng/searx/engines/kiwix.py:ro
     - ./searxng/entrypoint.sh:/usr/local/searxng/searxng-entrypoint.sh:ro

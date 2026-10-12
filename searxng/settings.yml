@@ -187,3 +187,8 @@ engines:
   inactive: false
   disabled: __MARGINALIA_ENABLED__
   weight: 0.4
+- name: z.ai prime
+  engine: zaiprime
+  disabled: false
+  timeout: 15.0
+  weight: 0.4
