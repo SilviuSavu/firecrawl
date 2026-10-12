@@ -237,6 +237,7 @@ engines:
 - name: national vulnerability database
   disabled: false
   weight: 0.4
+  categories: [cve]
 - name: sourcehut
   disabled: false
   weight: 0.4
@@ -504,39 +505,47 @@ engines:
 - name: apk mirror
   disabled: false
   weight: 0.4
+  categories: [apps]
 - name: apple app store
   disabled: false
   weight: 0.4
+  categories: [apps]
 - name: google play apps
   disabled: false
   weight: 0.4
+  categories: [apps]
 - name: fdroid
   disabled: false
   weight: 0.4
+  categories: [apps]
 - name: anaconda
   disabled: false
   weight: 0.4
+  categories: [packages]
 - name: alpine linux packages
   disabled: false
   weight: 0.4
+  categories: [packages]
 - name: cachy os packages
   disabled: false
   weight: 0.4
+  categories: [packages]
 - name: voidlinux
   disabled: false
   weight: 0.4
+  categories: [packages]
 - name: bitbucket
   disabled: false
   weight: 0.4
+  categories: [repos]
 - name: gitea.com
   disabled: false
   weight: 0.4
-- name: free software directory
-  disabled: false
-  weight: 0.4
+  categories: [repos]
 - name: habrahabr
   disabled: false
   weight: 0.4
+  categories: [news]
 - name: discuss.python
   disabled: false
   weight: 0.4
@@ -546,15 +555,19 @@ engines:
 - name: pi-hole.community
   disabled: false
   weight: 0.4
+  categories: [qa]
 - name: ollama
   disabled: false
   weight: 0.4
+  categories: [repos]
 - name: huggingface datasets
   disabled: false
   weight: 0.4
+  categories: [repos]
 - name: huggingface spaces
   disabled: false
   weight: 0.4
+  categories: [repos]
 - name: openmeteo
   disabled: false
   weight: 0.4
