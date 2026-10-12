@@ -19,7 +19,7 @@ export async function search({
   safe = undefined,
   proxy = undefined,
   sleep_interval = 0,
-  timeout = 5000,
+  timeout = 30000,
   type = undefined,
   enterprise = undefined,
   includeDomains = undefined,
